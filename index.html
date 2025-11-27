@@ -60,6 +60,37 @@
             font-size: 64px;
             margin: 20px 0;
         }
+        #skinSelector {
+            margin: 20px 0;
+        }
+        #skins {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .skin-btn {
+            width: 70px;
+            height: 50px;
+            border: 3px solid #444;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .skin-btn:hover {
+            transform: scale(1.1);
+            border-color: #888;
+        }
+        .skin-btn.selected {
+            border-color: #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+        .skin-btn canvas {
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 <body>
@@ -69,6 +100,12 @@
     <div id="menu">
         <h1 id="menuTitle">Sky Drifter</h1>
         <p id="menuText">Move mouse, touch screen, or use ↑↓ keys to fly.<br>Collect stars ★ and avoid clouds!</p>
+        
+        <div id="skinSelector">
+            <p style="color: #aaa; margin-bottom: 10px;">Choose your plane:</p>
+            <div id="skins"></div>
+        </div>
+        
         <button id="startBtn">Play</button>
     </div>
 
@@ -84,6 +121,98 @@
         }
         resize();
         window.addEventListener('resize', resize);
+
+        // Plane skins
+        const planeSkins = [
+            { name: 'Classic', body: '#e0e0e0', wings: '#4ecdc4', tail: '#ff6b6b', cockpit: '#2c3e50' },
+            { name: 'Sunset', body: '#ffb347', wings: '#ff6b6b', tail: '#ff4757', cockpit: '#2f3542' },
+            { name: 'Ocean', body: '#74b9ff', wings: '#0984e3', tail: '#00cec9', cockpit: '#2d3436' },
+            { name: 'Forest', body: '#a8e6cf', wings: '#56ab2f', tail: '#f093fb', cockpit: '#2d3436' },
+            { name: 'Stealth', body: '#2d3436', wings: '#636e72', tail: '#b2bec3', cockpit: '#dfe6e9' },
+            { name: 'Gold', body: '#ffd700', wings: '#ff8c00', tail: '#ff6348', cockpit: '#2f3542' },
+            { name: 'Cotton Candy', body: '#fd79a8', wings: '#a29bfe', tail: '#74b9ff', cockpit: '#2d3436' },
+            { name: 'Midnight', body: '#6c5ce7', wings: '#a29bfe', tail: '#fd79a8', cockpit: '#dfe6e9' }
+        ];
+        let selectedSkin = 0;
+
+        // Cloud colors
+        const cloudColors = [
+            { fill: 'rgba(255, 255, 255, 0.9)', shadow: 'rgba(200, 200, 220, 0.5)' },
+            { fill: 'rgba(255, 182, 193, 0.85)', shadow: 'rgba(255, 130, 150, 0.4)' },    // Pink
+            { fill: 'rgba(173, 216, 230, 0.85)', shadow: 'rgba(100, 180, 220, 0.4)' },    // Light blue
+            { fill: 'rgba(255, 218, 185, 0.85)', shadow: 'rgba(255, 180, 130, 0.4)' },    // Peach
+            { fill: 'rgba(221, 160, 221, 0.85)', shadow: 'rgba(180, 120, 180, 0.4)' },    // Plum
+            { fill: 'rgba(176, 224, 230, 0.85)', shadow: 'rgba(130, 190, 200, 0.4)' },    // Powder blue
+            { fill: 'rgba(255, 250, 205, 0.85)', shadow: 'rgba(230, 220, 150, 0.4)' },    // Lemon
+            { fill: 'rgba(152, 251, 152, 0.85)', shadow: 'rgba(100, 200, 100, 0.4)' }     // Pale green
+        ];
+
+        // Create skin selector buttons
+        function createSkinSelector() {
+            const container = document.getElementById('skins');
+            container.innerHTML = '';
+            
+            planeSkins.forEach((skin, index) => {
+                const btn = document.createElement('div');
+                btn.className = 'skin-btn' + (index === selectedSkin ? ' selected' : '');
+                btn.title = skin.name;
+                
+                // Create mini canvas for preview
+                const miniCanvas = document.createElement('canvas');
+                miniCanvas.width = 70;
+                miniCanvas.height = 50;
+                const mctx = miniCanvas.getContext('2d');
+                
+                // Draw mini plane
+                mctx.translate(35, 25);
+                mctx.scale(0.5, 0.5);
+                
+                // Body
+                mctx.fillStyle = skin.body;
+                mctx.fillRect(-35, -8, 70, 16);
+                mctx.beginPath();
+                mctx.moveTo(35, -8);
+                mctx.lineTo(50, 0);
+                mctx.lineTo(35, 8);
+                mctx.fill();
+                
+                // Wings
+                mctx.fillStyle = skin.wings;
+                mctx.beginPath();
+                mctx.moveTo(-10, -8);
+                mctx.lineTo(-25, -30);
+                mctx.lineTo(10, -8);
+                mctx.fill();
+                mctx.beginPath();
+                mctx.moveTo(-10, 8);
+                mctx.lineTo(-25, 30);
+                mctx.lineTo(10, 8);
+                mctx.fill();
+                
+                // Tail
+                mctx.fillStyle = skin.tail;
+                mctx.beginPath();
+                mctx.moveTo(-35, -5);
+                mctx.lineTo(-45, -20);
+                mctx.lineTo(-30, -5);
+                mctx.fill();
+                
+                // Cockpit
+                mctx.fillStyle = skin.cockpit;
+                mctx.beginPath();
+                mctx.arc(20, 0, 8, 0, Math.PI * 2);
+                mctx.fill();
+                
+                btn.appendChild(miniCanvas);
+                btn.onclick = function() {
+                    selectedSkin = index;
+                    document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                };
+                container.appendChild(btn);
+            });
+        }
+        createSkinSelector();
 
         // Game state
         let playing = false;
@@ -169,11 +298,13 @@
             if (playing) {
                 // Spawn clouds
                 if (time - lastCloud > 2000) {
+                    const colorIndex = Math.floor(Math.random() * cloudColors.length);
                     clouds.push({
                         x: canvas.width + 50,
                         y: Math.random() * (canvas.height - 100) + 50,
                         w: 80,
-                        h: 50
+                        h: 50,
+                        color: cloudColors[colorIndex]
                     });
                     lastCloud = time;
                 }
@@ -218,9 +349,18 @@
                     if (stars[i].x < -20) stars.splice(i, 1);
                 }
                 
-                // Draw clouds (white rectangles for simplicity)
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                // Draw clouds with different colors
                 for (let c of clouds) {
+                    // Shadow
+                    ctx.fillStyle = c.color.shadow;
+                    ctx.beginPath();
+                    ctx.arc(c.x + 5, c.y + 8, 25, 0, Math.PI * 2);
+                    ctx.arc(c.x + 30, c.y - 2, 30, 0, Math.PI * 2);
+                    ctx.arc(c.x + 55, c.y + 8, 25, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Main cloud
+                    ctx.fillStyle = c.color.fill;
                     ctx.beginPath();
                     ctx.arc(c.x, c.y, 25, 0, Math.PI * 2);
                     ctx.arc(c.x + 25, c.y - 10, 30, 0, Math.PI * 2);
@@ -236,13 +376,14 @@
                     ctx.fill();
                 }
                 
-                // Draw plane (simple triangle/shape)
+                // Draw plane with selected skin
+                const skin = planeSkins[selectedSkin];
                 ctx.save();
                 ctx.translate(plane.x, plane.y);
                 ctx.rotate(plane.vy * 0.05);
                 
                 // Body
-                ctx.fillStyle = '#e0e0e0';
+                ctx.fillStyle = skin.body;
                 ctx.fillRect(-35, -8, 70, 16);
                 
                 // Nose
@@ -253,7 +394,7 @@
                 ctx.fill();
                 
                 // Wings
-                ctx.fillStyle = '#4ecdc4';
+                ctx.fillStyle = skin.wings;
                 ctx.beginPath();
                 ctx.moveTo(-10, -8);
                 ctx.lineTo(-25, -30);
@@ -265,19 +406,46 @@
                 ctx.lineTo(10, 8);
                 ctx.fill();
                 
-                // Tail
-                ctx.fillStyle = '#ff6b6b';
+                // Tail fin
+                ctx.fillStyle = skin.tail;
                 ctx.beginPath();
                 ctx.moveTo(-35, -5);
                 ctx.lineTo(-45, -20);
                 ctx.lineTo(-30, -5);
                 ctx.fill();
                 
+                // Tail wings
+                ctx.fillStyle = skin.wings;
+                ctx.beginPath();
+                ctx.moveTo(-32, 0);
+                ctx.lineTo(-42, -10);
+                ctx.lineTo(-28, 0);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-32, 0);
+                ctx.lineTo(-42, 10);
+                ctx.lineTo(-28, 0);
+                ctx.fill();
+                
                 // Cockpit
-                ctx.fillStyle = '#2c3e50';
+                ctx.fillStyle = skin.cockpit;
                 ctx.beginPath();
                 ctx.arc(20, 0, 8, 0, Math.PI * 2);
                 ctx.fill();
+                
+                // Cockpit shine
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.arc(18, -2, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Windows
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                for (let i = 0; i < 4; i++) {
+                    ctx.beginPath();
+                    ctx.arc(-10 + i * 8, -4, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 
                 ctx.restore();
                 
