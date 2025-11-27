@@ -60,6 +60,36 @@
             font-size: 64px;
             margin: 20px 0;
         }
+        #difficultySelector {
+            margin: 20px 0;
+        }
+        #difficulties {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .diff-btn {
+            padding: 10px 25px;
+            border: 2px solid #444;
+            border-radius: 20px;
+            background: transparent;
+            color: #aaa;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .diff-btn:hover {
+            border-color: #888;
+            color: #fff;
+        }
+        .diff-btn.selected {
+            border-color: #4ecdc4;
+            color: #4ecdc4;
+            background: rgba(78, 205, 196, 0.1);
+        }
+        .diff-btn.easy.selected { border-color: #2ecc71; color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
+        .diff-btn.medium.selected { border-color: #f39c12; color: #f39c12; background: rgba(243, 156, 18, 0.1); }
+        .diff-btn.hard.selected { border-color: #e74c3c; color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
         #skinSelector {
             margin: 20px 0;
         }
@@ -95,11 +125,19 @@
 </head>
 <body>
     <canvas id="game"></canvas>
-    <div id="ui">Score: <span id="score">0</span></div>
+    <div id="ui">
+        <div>★ <span id="score">0</span></div>
+        <div id="diffDisplay" style="font-size: 14px; margin-top: 5px; opacity: 0.7;"></div>
+    </div>
     
     <div id="menu">
         <h1 id="menuTitle">Sky Drifter</h1>
         <p id="menuText">Move mouse, touch screen, or use ↑↓ keys to fly.<br>Collect stars ★ and avoid clouds!</p>
+        
+        <div id="difficultySelector">
+            <p style="color: #aaa; margin-bottom: 10px;">Select Difficulty:</p>
+            <div id="difficulties"></div>
+        </div>
         
         <div id="skinSelector">
             <p style="color: #aaa; margin-bottom: 10px;">Choose your plane:</p>
@@ -121,6 +159,48 @@
         }
         resize();
         window.addEventListener('resize', resize);
+
+        // Difficulty settings
+        const difficulties = [
+            { 
+                name: 'Easy', 
+                cloudSize: 1.0,      // Normal size
+                spawnRate: 2000,     // Spawn every 2 seconds
+                cloudCount: 1        // 1 cloud per spawn
+            },
+            { 
+                name: 'Medium', 
+                cloudSize: 1.5,      // 50% bigger
+                spawnRate: 1500,     // Spawn every 1.5 seconds
+                cloudCount: 1        // 1 cloud per spawn
+            },
+            { 
+                name: 'Hard', 
+                cloudSize: 2.0,      // 100% bigger (very big)
+                spawnRate: 800,      // Spawn every 0.8 seconds (clouds everywhere)
+                cloudCount: 2        // 2 clouds per spawn
+            }
+        ];
+        let selectedDifficulty = 0;
+
+        // Create difficulty selector
+        function createDifficultySelector() {
+            const container = document.getElementById('difficulties');
+            container.innerHTML = '';
+            
+            difficulties.forEach((diff, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'diff-btn ' + diff.name.toLowerCase() + (index === selectedDifficulty ? ' selected' : '');
+                btn.textContent = diff.name;
+                btn.onclick = function() {
+                    selectedDifficulty = index;
+                    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                };
+                container.appendChild(btn);
+            });
+        }
+        createDifficultySelector();
 
         // Plane skins
         const planeSkins = [
@@ -282,6 +362,12 @@
             clouds = [];
             stars = [];
             document.getElementById('score').textContent = '0';
+            
+            // Show difficulty and point multiplier
+            const diff = difficulties[selectedDifficulty];
+            const multiplier = selectedDifficulty + 1;
+            document.getElementById('diffDisplay').textContent = diff.name + ' (x' + multiplier + ' points)';
+            
             document.getElementById('menu').classList.add('hidden');
         };
 
@@ -296,16 +382,22 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             if (playing) {
-                // Spawn clouds
-                if (time - lastCloud > 2000) {
-                    const colorIndex = Math.floor(Math.random() * cloudColors.length);
-                    clouds.push({
-                        x: canvas.width + 50,
-                        y: Math.random() * (canvas.height - 100) + 50,
-                        w: 80,
-                        h: 50,
-                        color: cloudColors[colorIndex]
-                    });
+                // Spawn clouds based on difficulty
+                const diff = difficulties[selectedDifficulty];
+                if (time - lastCloud > diff.spawnRate) {
+                    // Spawn multiple clouds based on difficulty
+                    for (let i = 0; i < diff.cloudCount; i++) {
+                        const colorIndex = Math.floor(Math.random() * cloudColors.length);
+                        const size = diff.cloudSize;
+                        clouds.push({
+                            x: canvas.width + 50 + (i * 100), // Offset multiple clouds
+                            y: Math.random() * (canvas.height - 120) + 60,
+                            w: 80 * size,
+                            h: 50 * size,
+                            size: size,
+                            color: cloudColors[colorIndex]
+                        });
+                    }
                     lastCloud = time;
                 }
                 
@@ -349,22 +441,24 @@
                     if (stars[i].x < -20) stars.splice(i, 1);
                 }
                 
-                // Draw clouds with different colors
+                // Draw clouds with different colors and sizes
                 for (let c of clouds) {
+                    const s = c.size || 1;
+                    
                     // Shadow
                     ctx.fillStyle = c.color.shadow;
                     ctx.beginPath();
-                    ctx.arc(c.x + 5, c.y + 8, 25, 0, Math.PI * 2);
-                    ctx.arc(c.x + 30, c.y - 2, 30, 0, Math.PI * 2);
-                    ctx.arc(c.x + 55, c.y + 8, 25, 0, Math.PI * 2);
+                    ctx.arc(c.x + 5 * s, c.y + 8 * s, 25 * s, 0, Math.PI * 2);
+                    ctx.arc(c.x + 30 * s, c.y - 2 * s, 30 * s, 0, Math.PI * 2);
+                    ctx.arc(c.x + 55 * s, c.y + 8 * s, 25 * s, 0, Math.PI * 2);
                     ctx.fill();
                     
                     // Main cloud
                     ctx.fillStyle = c.color.fill;
                     ctx.beginPath();
-                    ctx.arc(c.x, c.y, 25, 0, Math.PI * 2);
-                    ctx.arc(c.x + 25, c.y - 10, 30, 0, Math.PI * 2);
-                    ctx.arc(c.x + 50, c.y, 25, 0, Math.PI * 2);
+                    ctx.arc(c.x, c.y, 25 * s, 0, Math.PI * 2);
+                    ctx.arc(c.x + 25 * s, c.y - 10 * s, 30 * s, 0, Math.PI * 2);
+                    ctx.arc(c.x + 50 * s, c.y, 25 * s, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
@@ -449,28 +543,32 @@
                 
                 ctx.restore();
                 
-                // Collision detection with clouds
+                // Collision detection with clouds (adjusted for size)
                 for (let c of clouds) {
-                    let dx = plane.x - (c.x + 25);
+                    const s = c.size || 1;
+                    let dx = plane.x - (c.x + 25 * s);
                     let dy = plane.y - c.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < 45) {
+                    let collisionRadius = 40 * s; // Bigger clouds = bigger collision area
+                    if (Math.sqrt(dx*dx + dy*dy) < collisionRadius) {
                         // Game over
                         playing = false;
-                        document.getElementById('menuTitle').textContent = 'Game Over! Score: ' + score;
-                        document.getElementById('menuText').textContent = 'You crashed into a cloud!';
+                        const diffName = difficulties[selectedDifficulty].name;
+                        document.getElementById('menuTitle').textContent = 'Game Over!';
+                        document.getElementById('menuText').innerHTML = 'Score: <span style="color:#ffd700;font-size:2em">' + score + '</span><br>Difficulty: <span style="color:#4ecdc4">' + diffName + '</span>';
                         document.getElementById('startBtn').textContent = 'Play Again';
                         document.getElementById('menu').classList.remove('hidden');
                         break;
                     }
                 }
                 
-                // Collision detection with stars
+                // Collision detection with stars (bonus points for harder difficulties)
+                const pointMultiplier = selectedDifficulty + 1; // Easy=1x, Medium=2x, Hard=3x
                 for (let i = stars.length - 1; i >= 0; i--) {
                     let dx = plane.x - stars[i].x;
                     let dy = plane.y - stars[i].y;
                     if (Math.sqrt(dx*dx + dy*dy) < 30) {
                         stars.splice(i, 1);
-                        score += 10;
+                        score += 10 * pointMultiplier;
                         document.getElementById('score').textContent = score;
                         if (score % 50 === 0) speed = Math.min(speed + 0.5, 10);
                     }
