@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Drifter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #game {
+            display: block;
+            background: linear-gradient(#16213e, #1a1a2e);
+        }
+        #ui {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            color: #ffd700;
+            font-size: 22px;
+            font-weight: bold;
+            z-index: 10;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 15px;
+            border-radius: 10px;
+        }
+        
+        @media (max-width: 600px) {
+            #ui {
+                font-size: 18px;
+                padding: 6px 12px;
+            }
+        }
+        #menu {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 40px;
+            z-index: 20;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        #menu.hidden { display: none; }
+        #menu h1 {
+            color: #4ecdc4;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        #menu p {
+            color: #aaa;
+            margin-bottom: 20px;
+            padding: 0 10px;
+        }
+        #menu button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        #menu button:hover { background: #ff5252; }
+        
+        /* Mobile responsive */
+        @media (max-width: 600px) {
+            #menu {
+                padding: 20px;
+            }
+            #menu h1 {
+                font-size: 32px;
+            }
+            #menu p {
+                font-size: 14px;
+            }
+            #difficulties {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .diff-btn {
+                padding: 12px 30px;
+                font-size: 16px;
+                width: 80%;
+            }
+            #skins {
+                max-width: 90vw;
+                gap: 10px;
+            }
+            .skin-btn {
+                width: 55px;
+                height: 40px;
+            }
+            #menu button {
+                padding: 12px 30px;
+                font-size: 18px;
+            }
+        }
+        #finalScore {
+            color: #ffd700;
+            font-size: 64px;
+            margin: 20px 0;
+        }
+        #difficultySelector {
+            margin: 15px 0;
+            width: 100%;
+            text-align: center;
+        }
+        #difficulties {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 0 10px;
+        }
+        .diff-btn {
+            padding: 10px 25px;
+            border: 2px solid #444;
+            border-radius: 20px;
+            background: transparent;
+            color: #aaa;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .diff-btn:hover {
+            border-color: #888;
+            color: #fff;
+        }
+        .diff-btn.selected {
+            border-color: #4ecdc4;
+            color: #4ecdc4;
+            background: rgba(78, 205, 196, 0.1);
+        }
+        .diff-btn.easy.selected { border-color: #2ecc71; color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
+        .diff-btn.medium.selected { border-color: #f39c12; color: #f39c12; background: rgba(243, 156, 18, 0.1); }
+        .diff-btn.hard.selected { border-color: #e74c3c; color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
+        #skinSelector {
+            margin: 15px 0;
+            width: 100%;
+            text-align: center;
+        }
+        #skins {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 0 10px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        #startBtn {
+            margin-bottom: 40px;
+        }
+        .skin-btn {
+            width: 70px;
+            height: 50px;
+            border: 3px solid #444;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .skin-btn:hover {
+            transform: scale(1.1);
+            border-color: #888;
+        }
+        .skin-btn.selected {
+            border-color: #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+        .skin-btn canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game"></canvas>
+    <div id="ui">
+        <div>★ <span id="score">0</span></div>
+        <div id="diffDisplay" style="font-size: 14px; margin-top: 5px; opacity: 0.7;"></div>
+    </div>
+    
+    <div id="menu">
+        <h1 id="menuTitle">Sky Drifter</h1>
+        <p id="menuText">Move mouse, touch screen, or use ↑↓ keys to fly.<br>Collect stars ★ and avoid clouds!</p>
+        
+        <div id="difficultySelector">
+            <p style="color: #aaa; margin-bottom: 10px;">Select Difficulty:</p>
+            <div id="difficulties"></div>
+        </div>
+        
+        <div id="skinSelector">
+            <p style="color: #aaa; margin-bottom: 10px;">Choose your plane:</p>
+            <div id="skins"></div>
+        </div>
+        
+        <button id="startBtn">Play</button>
+    </div>
+
+    <script>
+    (function() {
+        // Canvas setup
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Difficulty settings
+        const difficulties = [
+            { 
+                name: 'Easy', 
+                cloudSize: 1.0,      // Normal size
+                spawnRate: 2200,     // Spawn every 2.2 seconds
+                cloudCount: 1        // 1 cloud per spawn
+            },
+            { 
+                name: 'Medium', 
+                cloudSize: 1.4,      // 40% bigger
+                spawnRate: 1800,     // Spawn every 1.8 seconds
+                cloudCount: 1        // 1 cloud per spawn
+            },
+            { 
+                name: 'Hard', 
+                cloudSize: 1.8,      // 80% bigger (big clouds)
+                spawnRate: 1400,     // Spawn every 1.4 seconds
+                cloudCount: 1        // 1 cloud per spawn
+            }
+        ];
+        let selectedDifficulty = 0;
+
+        // Create difficulty selector
+        function createDifficultySelector() {
+            const container = document.getElementById('difficulties');
+            container.innerHTML = '';
+            
+            difficulties.forEach((diff, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'diff-btn ' + diff.name.toLowerCase() + (index === selectedDifficulty ? ' selected' : '');
+                btn.textContent = diff.name;
+                btn.onclick = function() {
+                    selectedDifficulty = index;
+                    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                };
+                container.appendChild(btn);
+            });
+        }
+        createDifficultySelector();
+
+        // Plane skins
+        const planeSkins = [
+            { name: 'Classic', body: '#e0e0e0', wings: '#4ecdc4', tail: '#ff6b6b', cockpit: '#2c3e50' },
+            { name: 'Sunset', body: '#ffb347', wings: '#ff6b6b', tail: '#ff4757', cockpit: '#2f3542' },
+            { name: 'Ocean', body: '#74b9ff', wings: '#0984e3', tail: '#00cec9', cockpit: '#2d3436' },
+            { name: 'Forest', body: '#a8e6cf', wings: '#56ab2f', tail: '#f093fb', cockpit: '#2d3436' },
+            { name: 'Stealth', body: '#2d3436', wings: '#636e72', tail: '#b2bec3', cockpit: '#dfe6e9' },
+            { name: 'Gold', body: '#ffd700', wings: '#ff8c00', tail: '#ff6348', cockpit: '#2f3542' },
+            { name: 'Cotton Candy', body: '#fd79a8', wings: '#a29bfe', tail: '#74b9ff', cockpit: '#2d3436' },
+            { name: 'Midnight', body: '#6c5ce7', wings: '#a29bfe', tail: '#fd79a8', cockpit: '#dfe6e9' }
+        ];
+        let selectedSkin = 0;
+
+        // Cloud colors
+        const cloudColors = [
+            { fill: 'rgba(255, 255, 255, 0.9)', shadow: 'rgba(200, 200, 220, 0.5)' },
+            { fill: 'rgba(255, 182, 193, 0.85)', shadow: 'rgba(255, 130, 150, 0.4)' },    // Pink
+            { fill: 'rgba(173, 216, 230, 0.85)', shadow: 'rgba(100, 180, 220, 0.4)' },    // Light blue
+            { fill: 'rgba(255, 218, 185, 0.85)', shadow: 'rgba(255, 180, 130, 0.4)' },    // Peach
+            { fill: 'rgba(221, 160, 221, 0.85)', shadow: 'rgba(180, 120, 180, 0.4)' },    // Plum
+            { fill: 'rgba(176, 224, 230, 0.85)', shadow: 'rgba(130, 190, 200, 0.4)' },    // Powder blue
+            { fill: 'rgba(255, 250, 205, 0.85)', shadow: 'rgba(230, 220, 150, 0.4)' },    // Lemon
+            { fill: 'rgba(152, 251, 152, 0.85)', shadow: 'rgba(100, 200, 100, 0.4)' }     // Pale green
+        ];
+
+        // Create skin selector buttons
+        function createSkinSelector() {
+            const container = document.getElementById('skins');
+            container.innerHTML = '';
+            
+            planeSkins.forEach((skin, index) => {
+                const btn = document.createElement('div');
+                btn.className = 'skin-btn' + (index === selectedSkin ? ' selected' : '');
+                btn.title = skin.name;
+                
+                // Create mini canvas for preview
+                const miniCanvas = document.createElement('canvas');
+                miniCanvas.width = 70;
+                miniCanvas.height = 50;
+                const mctx = miniCanvas.getContext('2d');
+                
+                // Draw mini plane
+                mctx.translate(35, 25);
+                mctx.scale(0.5, 0.5);
+                
+                // Body
+                mctx.fillStyle = skin.body;
+                mctx.fillRect(-35, -8, 70, 16);
+                mctx.beginPath();
+                mctx.moveTo(35, -8);
+                mctx.lineTo(50, 0);
+                mctx.lineTo(35, 8);
+                mctx.fill();
+                
+                // Wings
+                mctx.fillStyle = skin.wings;
+                mctx.beginPath();
+                mctx.moveTo(-10, -8);
+                mctx.lineTo(-25, -30);
+                mctx.lineTo(10, -8);
+                mctx.fill();
+                mctx.beginPath();
+                mctx.moveTo(-10, 8);
+                mctx.lineTo(-25, 30);
+                mctx.lineTo(10, 8);
+                mctx.fill();
+                
+                // Tail
+                mctx.fillStyle = skin.tail;
+                mctx.beginPath();
+                mctx.moveTo(-35, -5);
+                mctx.lineTo(-45, -20);
+                mctx.lineTo(-30, -5);
+                mctx.fill();
+                
+                // Cockpit
+                mctx.fillStyle = skin.cockpit;
+                mctx.beginPath();
+                mctx.arc(20, 0, 8, 0, Math.PI * 2);
+                mctx.fill();
+                
+                btn.appendChild(miniCanvas);
+                btn.onclick = function() {
+                    selectedSkin = index;
+                    document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                };
+                container.appendChild(btn);
+            });
+        }
+        createSkinSelector();
+
+        // Game state
+        let playing = false;
+        let score = 0;
+        let speed = 3;
+        
+        // Player plane
+        let plane = { x: 120, y: 300, vy: 0 };
+        
+        // Objects
+        let clouds = [];
+        let stars = [];
+        
+        // Controls
+        let up = false, down = false;
+        let targetY = null; // For mouse/touch control
+        
+        // Keyboard controls
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowUp' || e.key === 'w') up = true;
+            if (e.key === 'ArrowDown' || e.key === 's') down = true;
+        });
+        
+        document.addEventListener('keyup', function(e) {
+            if (e.key === 'ArrowUp' || e.key === 'w') up = false;
+            if (e.key === 'ArrowDown' || e.key === 's') down = false;
+        });
+        
+        // Mouse controls
+        canvas.addEventListener('mousemove', function(e) {
+            targetY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousedown', function(e) {
+            targetY = e.clientY;
+        });
+        
+        canvas.addEventListener('mouseleave', function() {
+            targetY = null;
+        });
+        
+        // Touch controls
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                targetY = e.touches[0].clientY;
+            }
+        }, { passive: false });
+        
+        canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                targetY = e.touches[0].clientY;
+            }
+        }, { passive: false });
+        
+        canvas.addEventListener('touchend', function(e) {
+            targetY = null;
+        });
+
+        // Start button
+        document.getElementById('startBtn').onclick = function() {
+            playing = true;
+            score = 0;
+            speed = 3;
+            plane = { x: 120, y: canvas.height / 2, vy: 0 };
+            clouds = [];
+            stars = [];
+            document.getElementById('score').textContent = '0';
+            
+            // Show difficulty and point multiplier
+            const diff = difficulties[selectedDifficulty];
+            const multiplier = selectedDifficulty + 1;
+            document.getElementById('diffDisplay').textContent = diff.name + ' (x' + multiplier + ' points)';
+            
+            document.getElementById('menu').classList.add('hidden');
+        };
+
+        // Spawn timers
+        let lastCloud = 0;
+        let lastStar = 0;
+
+        // Main loop
+        function loop(time) {
+            // Clear screen
+            ctx.fillStyle = '#16213e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (playing) {
+                // Spawn clouds based on difficulty
+                const diff = difficulties[selectedDifficulty];
+                if (time - lastCloud > diff.spawnRate) {
+                    // Spawn multiple clouds based on difficulty
+                    for (let i = 0; i < diff.cloudCount; i++) {
+                        const colorIndex = Math.floor(Math.random() * cloudColors.length);
+                        const size = diff.cloudSize;
+                        clouds.push({
+                            x: canvas.width + 50 + (i * 100), // Offset multiple clouds
+                            y: Math.random() * (canvas.height - 120) + 60,
+                            w: 80 * size,
+                            h: 50 * size,
+                            size: size,
+                            color: cloudColors[colorIndex]
+                        });
+                    }
+                    lastCloud = time;
+                }
+                
+                // Spawn stars
+                if (time - lastStar > 1500) {
+                    stars.push({
+                        x: canvas.width + 20,
+                        y: Math.random() * (canvas.height - 100) + 50
+                    });
+                    lastStar = time;
+                }
+                
+                // Update plane
+                if (up) plane.vy -= 0.5;
+                if (down) plane.vy += 0.5;
+                
+                // Mouse/touch control - plane follows finger/cursor
+                if (targetY !== null && !up && !down) {
+                    let diff = targetY - plane.y;
+                    plane.vy += diff * 0.05;
+                }
+                
+                plane.vy += 0.15; // gravity (reduced)
+                plane.vy *= 0.92; // drag
+                plane.vy = Math.max(-12, Math.min(12, plane.vy)); // limit speed
+                plane.y += plane.vy;
+                
+                // Bounds
+                if (plane.y < 30) { plane.y = 30; plane.vy = 0; }
+                if (plane.y > canvas.height - 30) { plane.y = canvas.height - 30; plane.vy = 0; }
+                
+                // Update clouds
+                for (let i = clouds.length - 1; i >= 0; i--) {
+                    clouds[i].x -= speed;
+                    if (clouds[i].x < -100) clouds.splice(i, 1);
+                }
+                
+                // Update stars
+                for (let i = stars.length - 1; i >= 0; i--) {
+                    stars[i].x -= speed + 1;
+                    if (stars[i].x < -20) stars.splice(i, 1);
+                }
+                
+                // Draw clouds with different colors and sizes
+                for (let c of clouds) {
+                    const s = c.size || 1;
+                    
+                    // Shadow
+                    ctx.fillStyle = c.color.shadow;
+                    ctx.beginPath();
+                    ctx.arc(c.x + 5 * s, c.y + 8 * s, 25 * s, 0, Math.PI * 2);
+                    ctx.arc(c.x + 30 * s, c.y - 2 * s, 30 * s, 0, Math.PI * 2);
+                    ctx.arc(c.x + 55 * s, c.y + 8 * s, 25 * s, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Main cloud
+                    ctx.fillStyle = c.color.fill;
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, 25 * s, 0, Math.PI * 2);
+                    ctx.arc(c.x + 25 * s, c.y - 10 * s, 30 * s, 0, Math.PI * 2);
+                    ctx.arc(c.x + 50 * s, c.y, 25 * s, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw stars
+                ctx.fillStyle = '#ffd700';
+                for (let s of stars) {
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw plane with selected skin
+                const skin = planeSkins[selectedSkin];
+                ctx.save();
+                ctx.translate(plane.x, plane.y);
+                ctx.rotate(plane.vy * 0.05);
+                
+                // Body
+                ctx.fillStyle = skin.body;
+                ctx.fillRect(-35, -8, 70, 16);
+                
+                // Nose
+                ctx.beginPath();
+                ctx.moveTo(35, -8);
+                ctx.lineTo(50, 0);
+                ctx.lineTo(35, 8);
+                ctx.fill();
+                
+                // Wings
+                ctx.fillStyle = skin.wings;
+                ctx.beginPath();
+                ctx.moveTo(-10, -8);
+                ctx.lineTo(-25, -30);
+                ctx.lineTo(10, -8);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-10, 8);
+                ctx.lineTo(-25, 30);
+                ctx.lineTo(10, 8);
+                ctx.fill();
+                
+                // Tail fin
+                ctx.fillStyle = skin.tail;
+                ctx.beginPath();
+                ctx.moveTo(-35, -5);
+                ctx.lineTo(-45, -20);
+                ctx.lineTo(-30, -5);
+                ctx.fill();
+                
+                // Tail wings
+                ctx.fillStyle = skin.wings;
+                ctx.beginPath();
+                ctx.moveTo(-32, 0);
+                ctx.lineTo(-42, -10);
+                ctx.lineTo(-28, 0);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-32, 0);
+                ctx.lineTo(-42, 10);
+                ctx.lineTo(-28, 0);
+                ctx.fill();
+                
+                // Cockpit
+                ctx.fillStyle = skin.cockpit;
+                ctx.beginPath();
+                ctx.arc(20, 0, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Cockpit shine
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.arc(18, -2, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Windows
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                for (let i = 0; i < 4; i++) {
+                    ctx.beginPath();
+                    ctx.arc(-10 + i * 8, -4, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+                
+                // Collision detection with clouds (adjusted for size)
+                for (let c of clouds) {
+                    const s = c.size || 1;
+                    let dx = plane.x - (c.x + 25 * s);
+                    let dy = plane.y - c.y;
+                    let collisionRadius = 40 * s; // Bigger clouds = bigger collision area
+                    if (Math.sqrt(dx*dx + dy*dy) < collisionRadius) {
+                        // Game over
+                        playing = false;
+                        const diffName = difficulties[selectedDifficulty].name;
+                        document.getElementById('menuTitle').textContent = 'Game Over!';
+                        document.getElementById('menuText').innerHTML = 'Score: <span style="color:#ffd700;font-size:2em">' + score + '</span><br>Difficulty: <span style="color:#4ecdc4">' + diffName + '</span>';
+                        document.getElementById('startBtn').textContent = 'Play Again';
+                        document.getElementById('menu').classList.remove('hidden');
+                        break;
+                    }
+                }
+                
+                // Collision detection with stars (bonus points for harder difficulties)
+                const pointMultiplier = selectedDifficulty + 1; // Easy=1x, Medium=2x, Hard=3x
+                for (let i = stars.length - 1; i >= 0; i--) {
+                    let dx = plane.x - stars[i].x;
+                    let dy = plane.y - stars[i].y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 30) {
+                        stars.splice(i, 1);
+                        score += 10 * pointMultiplier;
+                        document.getElementById('score').textContent = score;
+                        if (score % 50 === 0) speed = Math.min(speed + 0.5, 10);
+                    }
+                }
+            }
+            
+            requestAnimationFrame(loop);
+        }
+        
+        // Start the loop
+        requestAnimationFrame(loop);
+    })();
+    </script>
+</body>
+</html>
