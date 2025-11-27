@@ -3,204 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sky Drifter - Airplane Adventure</title>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+    <title>Sky Drifter</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Quicksand', sans-serif;
+            background: #1a1a2e;
             overflow: hidden;
-            background: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-            min-height: 100vh;
+            font-family: Arial, sans-serif;
         }
-
-        #gameCanvas {
+        #game {
             display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
+            background: linear-gradient(#16213e, #1a1a2e);
         }
-
-        .ui-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            pointer-events: none;
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: bold;
             z-index: 10;
         }
-
-        .score-display {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            font-family: 'Fredoka One', cursive;
-            font-size: 2rem;
-            color: #ffd700;
-            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .high-score {
-            position: absolute;
-            top: 30px;
-            right: 30px;
-            font-family: 'Fredoka One', cursive;
-            font-size: 1.2rem;
-            color: #4ecdc4;
-            text-shadow: 0 0 15px rgba(78, 205, 196, 0.5);
-        }
-
-        .screen-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        #menu {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: rgba(15, 12, 41, 0.9);
-            z-index: 100;
-            transition: opacity 0.3s ease;
+            z-index: 20;
         }
-
-        .screen-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .game-title {
-            font-family: 'Fredoka One', cursive;
-            font-size: 4rem;
-            background: linear-gradient(135deg, #ffd700, #ff6b6b, #4ecdc4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 10px;
-        }
-
-        .game-subtitle {
-            font-size: 1.5rem;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 40px;
-        }
-
-        .btn {
-            font-family: 'Fredoka One', cursive;
-            font-size: 1.5rem;
-            padding: 18px 50px;
-            border: none;
-            border-radius: 50px;
-            background: linear-gradient(135deg, #ff6b6b, #ff8e53);
-            color: white;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
-        }
-
-        .btn:hover {
-            transform: translateY(-3px) scale(1.02);
-        }
-
-        .controls-hint {
-            margin-top: 30px;
-            color: rgba(255, 255, 255, 0.5);
-            text-align: center;
-        }
-
-        .controls-hint span {
-            display: inline-block;
-            padding: 8px 15px;
-            margin: 5px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-        }
-
-        .final-score {
-            font-family: 'Fredoka One', cursive;
-            font-size: 5rem;
-            color: #ffd700;
-            margin: 20px 0;
-        }
-
-        .new-record {
+        #menu.hidden { display: none; }
+        #menu h1 {
             color: #4ecdc4;
-            font-size: 1.5rem;
+            font-size: 48px;
             margin-bottom: 20px;
-            display: none;
         }
-
-        .new-record.show {
-            display: block;
+        #menu p {
+            color: #aaa;
+            margin-bottom: 30px;
+        }
+        #menu button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        #menu button:hover { background: #ff5252; }
+        #finalScore {
+            color: #ffd700;
+            font-size: 64px;
+            margin: 20px 0;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="game"></canvas>
+    <div id="ui">Score: <span id="score">0</span></div>
     
-    <div class="ui-overlay">
-        <div class="score-display">★ <span id="score">0</span></div>
-        <div class="high-score">Best: <span id="highScore">0</span></div>
-    </div>
-
-    <div class="screen-overlay" id="startScreen">
-        <h1 class="game-title">Sky Drifter</h1>
-        <p class="game-subtitle">Airplane Adventure</p>
-        <button class="btn" onclick="startGame()">Take Off!</button>
-        <div class="controls-hint">
-            <p>Use <span>↑ W</span> <span>↓ S</span> or <span>MOUSE</span> to fly</p>
-            <p style="margin-top: 10px;">Collect stars ★ and avoid clouds ☁</p>
-        </div>
-    </div>
-
-    <div class="screen-overlay hidden" id="gameOverScreen">
-        <h1 class="game-title" style="font-size: 3rem;">Flight Ended</h1>
-        <p>Your Score</p>
-        <div class="final-score" id="finalScore">0</div>
-        <div class="new-record" id="newRecord">🎉 New High Score! 🎉</div>
-        <button class="btn" onclick="startGame()">Fly Again</button>
-        <div class="controls-hint">
-            <p>Press <span>SPACE</span> to restart</p>
-        </div>
+    <div id="menu">
+        <h1 id="menuTitle">Sky Drifter</h1>
+        <p id="menuText">Use ↑↓ or W/S keys to fly. Collect stars, avoid clouds!</p>
+        <button id="startBtn">Play</button>
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-
-        // Game variables
-        let gameRunning = false;
-        let score = 0;
-        let highScore = 0;
-        let gameSpeed = 3;
-
-        // Try to load high score
-        try {
-            highScore = parseInt(localStorage.getItem('skyDrifterHighScore')) || 0;
-            document.getElementById('highScore').textContent = highScore;
-        } catch(e) {}
-
-        // Game objects
-        let plane = null;
-        let clouds = [];
-        let stars = [];
-        let particles = [];
-
-        // Input
-        let keys = { up: false, down: false };
-        let mouseY = null;
-
-        // Timing
-        let lastCloudTime = 0;
-        let lastStarTime = 0;
-
+    (function() {
         // Canvas setup
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -208,442 +85,194 @@
         resize();
         window.addEventListener('resize', resize);
 
-        // Input handlers
-        document.addEventListener('keydown', e => {
-            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
-            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
-            if (e.key === ' ' && !gameRunning) startGame();
+        // Game state
+        let playing = false;
+        let score = 0;
+        let speed = 3;
+        
+        // Player plane
+        let plane = { x: 120, y: 300, vy: 0 };
+        
+        // Objects
+        let clouds = [];
+        let stars = [];
+        
+        // Controls
+        let up = false, down = false;
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowUp' || e.key === 'w') up = true;
+            if (e.key === 'ArrowDown' || e.key === 's') down = true;
+        });
+        
+        document.addEventListener('keyup', function(e) {
+            if (e.key === 'ArrowUp' || e.key === 'w') up = false;
+            if (e.key === 'ArrowDown' || e.key === 's') down = false;
         });
 
-        document.addEventListener('keyup', e => {
-            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
-            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
-        });
-
-        document.addEventListener('mousemove', e => { mouseY = e.clientY; });
-        document.addEventListener('mouseleave', () => { mouseY = null; });
-
-        // Plane object
-        function createPlane() {
-            return {
-                x: 150,
-                y: canvas.height / 2,
-                width: 80,
-                height: 50,
-                vy: 0,
-                
-                update() {
-                    // Controls
-                    if (keys.up) this.vy -= 0.6;
-                    if (keys.down) this.vy += 0.6;
-                    
-                    // Mouse control
-                    if (mouseY !== null && !keys.up && !keys.down) {
-                        this.vy += (mouseY - this.y) * 0.03;
-                    }
-                    
-                    // Gravity
-                    this.vy += 0.15;
-                    
-                    // Damping and limits
-                    this.vy *= 0.94;
-                    this.vy = Math.max(-10, Math.min(10, this.vy));
-                    
-                    // Move
-                    this.y += this.vy;
-                    
-                    // Boundaries
-                    if (this.y < 30) { this.y = 30; this.vy = 0; }
-                    if (this.y > canvas.height - 30) { this.y = canvas.height - 30; this.vy = 0; }
-                },
-                
-                draw() {
-                    const x = this.x;
-                    const y = this.y;
-                    const tilt = this.vy * 2;
-                    
-                    ctx.save();
-                    ctx.translate(x, y);
-                    ctx.rotate(tilt * Math.PI / 180);
-                    
-                    // Fuselage
-                    ctx.fillStyle = '#e8e8e8';
-                    ctx.beginPath();
-                    ctx.moveTo(-35, 0);
-                    ctx.quadraticCurveTo(-40, -8, -30, -10);
-                    ctx.lineTo(30, -8);
-                    ctx.quadraticCurveTo(45, -5, 45, 0);
-                    ctx.quadraticCurveTo(45, 5, 30, 8);
-                    ctx.lineTo(-30, 10);
-                    ctx.quadraticCurveTo(-40, 8, -35, 0);
-                    ctx.fill();
-                    ctx.strokeStyle = '#ccc';
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                    
-                    // Wings
-                    ctx.fillStyle = '#4ecdc4';
-                    ctx.beginPath();
-                    ctx.moveTo(-5, -6);
-                    ctx.lineTo(-20, -30);
-                    ctx.lineTo(15, -6);
-                    ctx.fill();
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(-5, 6);
-                    ctx.lineTo(-20, 30);
-                    ctx.lineTo(15, 6);
-                    ctx.fill();
-                    
-                    // Tail fin
-                    ctx.fillStyle = '#ff6b6b';
-                    ctx.beginPath();
-                    ctx.moveTo(-30, -5);
-                    ctx.lineTo(-38, -22);
-                    ctx.lineTo(-25, -5);
-                    ctx.fill();
-                    
-                    // Tail wings
-                    ctx.fillStyle = '#4ecdc4';
-                    ctx.beginPath();
-                    ctx.moveTo(-32, 0);
-                    ctx.lineTo(-42, -12);
-                    ctx.lineTo(-28, 0);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.moveTo(-32, 0);
-                    ctx.lineTo(-42, 12);
-                    ctx.lineTo(-28, 0);
-                    ctx.fill();
-                    
-                    // Cockpit
-                    ctx.fillStyle = '#2c3e50';
-                    ctx.beginPath();
-                    ctx.arc(25, -2, 8, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = 'rgba(100, 180, 255, 0.5)';
-                    ctx.beginPath();
-                    ctx.arc(26, -3, 5, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Windows
-                    ctx.fillStyle = 'rgba(40, 60, 80, 0.6)';
-                    for (let i = 0; i < 4; i++) {
-                        ctx.beginPath();
-                        ctx.arc(-10 + i * 8, -4, 2, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    
-                    // Engine
-                    ctx.fillStyle = '#555';
-                    ctx.beginPath();
-                    ctx.ellipse(0, 18, 6, 4, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    ctx.restore();
-                    
-                    // Exhaust trail
-                    for (let i = 0; i < 5; i++) {
-                        ctx.fillStyle = `rgba(200, 200, 200, ${0.3 - i * 0.05})`;
-                        ctx.beginPath();
-                        ctx.arc(x - 45 - i * 8, y + 18 + Math.sin(Date.now() * 0.01 + i) * 2, 4 - i * 0.5, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                },
-                
-                getBounds() {
-                    return { x: this.x - 30, y: this.y - 15, w: 60, h: 30 };
-                }
-            };
-        }
-
-        // Cloud object
-        function createCloud() {
-            const w = 70 + Math.random() * 50;
-            const h = 35 + Math.random() * 25;
-            return {
-                x: canvas.width + w,
-                y: 50 + Math.random() * (canvas.height - 150),
-                width: w,
-                height: h,
-                speed: 1 + Math.random() * 1.5,
-                
-                update() {
-                    this.x -= this.speed + gameSpeed;
-                },
-                
-                draw() {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-                    const cx = this.x + this.width / 2;
-                    const cy = this.y + this.height / 2;
-                    
-                    // Draw cloud puffs
-                    ctx.beginPath();
-                    ctx.arc(cx - 20, cy, 20, 0, Math.PI * 2);
-                    ctx.arc(cx, cy - 8, 25, 0, Math.PI * 2);
-                    ctx.arc(cx + 20, cy, 18, 0, Math.PI * 2);
-                    ctx.arc(cx, cy + 5, 22, 0, Math.PI * 2);
-                    ctx.fill();
-                },
-                
-                getBounds() {
-                    return { x: this.x + 5, y: this.y, w: this.width - 10, h: this.height };
-                },
-                
-                isOffScreen() {
-                    return this.x + this.width < 0;
-                }
-            };
-        }
-
-        // Star object
-        function createStar() {
-            return {
-                x: canvas.width + 20,
-                y: 60 + Math.random() * (canvas.height - 120),
-                radius: 12,
-                rotation: 0,
-                speed: 1.5,
-                collected: false,
-                
-                update() {
-                    this.x -= this.speed + gameSpeed;
-                    this.rotation += 3;
-                },
-                
-                draw() {
-                    if (this.collected) return;
-                    
-                    ctx.save();
-                    ctx.translate(this.x, this.y);
-                    ctx.rotate(this.rotation * Math.PI / 180);
-                    
-                    // Glow
-                    ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 20, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Star
-                    ctx.fillStyle = '#ffd700';
-                    ctx.beginPath();
-                    for (let i = 0; i < 5; i++) {
-                        const angle = (i * 4 * Math.PI / 5) - Math.PI / 2;
-                        const px = Math.cos(angle) * this.radius;
-                        const py = Math.sin(angle) * this.radius;
-                        if (i === 0) ctx.moveTo(px, py);
-                        else ctx.lineTo(px, py);
-                    }
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.strokeStyle = '#ff8c00';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    
-                    ctx.restore();
-                },
-                
-                getBounds() {
-                    return { x: this.x - 12, y: this.y - 12, w: 24, h: 24 };
-                },
-                
-                isOffScreen() {
-                    return this.x < -20;
-                }
-            };
-        }
-
-        // Particle
-        function createParticle(x, y, color) {
-            return {
-                x, y,
-                vx: (Math.random() - 0.5) * 8,
-                vy: (Math.random() - 0.5) * 8,
-                life: 1,
-                color,
-                
-                update() {
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    this.vx *= 0.95;
-                    this.vy *= 0.95;
-                    this.life -= 0.03;
-                },
-                
-                draw() {
-                    ctx.fillStyle = this.color.replace('1)', `${this.life})`);
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, 4 * this.life, 0, Math.PI * 2);
-                    ctx.fill();
-                },
-                
-                isDead() { return this.life <= 0; }
-            };
-        }
-
-        // Collision check
-        function collides(a, b) {
-            return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-        }
-
-        // Start game
-        function startGame() {
-            gameRunning = true;
+        // Start button
+        document.getElementById('startBtn').onclick = function() {
+            playing = true;
             score = 0;
-            gameSpeed = 3;
-            plane = createPlane();
+            speed = 3;
+            plane = { x: 120, y: canvas.height / 2, vy: 0 };
             clouds = [];
             stars = [];
-            particles = [];
-            lastCloudTime = Date.now();
-            lastStarTime = Date.now();
-            
             document.getElementById('score').textContent = '0';
-            document.getElementById('startScreen').classList.add('hidden');
-            document.getElementById('gameOverScreen').classList.add('hidden');
-        }
+            document.getElementById('menu').classList.add('hidden');
+        };
 
-        // End game
-        function endGame() {
-            gameRunning = false;
-            document.getElementById('finalScore').textContent = score;
-            
-            if (score > highScore) {
-                highScore = score;
-                try { localStorage.setItem('skyDrifterHighScore', highScore); } catch(e) {}
-                document.getElementById('highScore').textContent = highScore;
-                document.getElementById('newRecord').classList.add('show');
-            } else {
-                document.getElementById('newRecord').classList.remove('show');
-            }
-            
-            document.getElementById('gameOverScreen').classList.remove('hidden');
-            
-            // Explosion
-            for (let i = 0; i < 20; i++) {
-                particles.push(createParticle(plane.x, plane.y, 'rgba(255, 100, 100, 1)'));
-            }
-        }
+        // Spawn timers
+        let lastCloud = 0;
+        let lastStar = 0;
 
-        // Draw background
-        function drawBackground() {
-            // Sky gradient
-            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            grad.addColorStop(0, '#1a1a3e');
-            grad.addColorStop(0.5, '#2d2d5a');
-            grad.addColorStop(1, '#1f1f4a');
-            ctx.fillStyle = grad;
+        // Main loop
+        function loop(time) {
+            // Clear screen
+            ctx.fillStyle = '#16213e';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Stars in background
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            for (let i = 0; i < 50; i++) {
-                const x = (i * 137 + Date.now() * 0.01) % canvas.width;
-                const y = (i * 97) % canvas.height;
-                ctx.beginPath();
-                ctx.arc(x, y, 1, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        // Main game loop
-        function gameLoop() {
-            // Clear
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Background
-            drawBackground();
-            
-            if (gameRunning && plane) {
-                const now = Date.now();
-                
+            if (playing) {
                 // Spawn clouds
-                if (now - lastCloudTime > 1800) {
-                    clouds.push(createCloud());
-                    lastCloudTime = now;
+                if (time - lastCloud > 2000) {
+                    clouds.push({
+                        x: canvas.width + 50,
+                        y: Math.random() * (canvas.height - 100) + 50,
+                        w: 80,
+                        h: 50
+                    });
+                    lastCloud = time;
                 }
                 
                 // Spawn stars
-                if (now - lastStarTime > 1500) {
-                    stars.push(createStar());
-                    lastStarTime = now;
+                if (time - lastStar > 1500) {
+                    stars.push({
+                        x: canvas.width + 20,
+                        y: Math.random() * (canvas.height - 100) + 50
+                    });
+                    lastStar = time;
                 }
+                
+                // Update plane
+                if (up) plane.vy -= 0.5;
+                if (down) plane.vy += 0.5;
+                plane.vy += 0.2; // gravity
+                plane.vy *= 0.95; // drag
+                plane.y += plane.vy;
+                
+                // Bounds
+                if (plane.y < 30) { plane.y = 30; plane.vy = 0; }
+                if (plane.y > canvas.height - 30) { plane.y = canvas.height - 30; plane.vy = 0; }
                 
                 // Update clouds
                 for (let i = clouds.length - 1; i >= 0; i--) {
-                    clouds[i].update();
-                    if (clouds[i].isOffScreen()) {
-                        clouds.splice(i, 1);
-                    }
+                    clouds[i].x -= speed;
+                    if (clouds[i].x < -100) clouds.splice(i, 1);
                 }
                 
                 // Update stars
                 for (let i = stars.length - 1; i >= 0; i--) {
-                    stars[i].update();
-                    if (stars[i].isOffScreen() || stars[i].collected) {
-                        stars.splice(i, 1);
-                    }
+                    stars[i].x -= speed + 1;
+                    if (stars[i].x < -20) stars.splice(i, 1);
                 }
                 
-                // Update plane
-                plane.update();
-                
-                // Draw clouds
-                for (const cloud of clouds) {
-                    cloud.draw();
+                // Draw clouds (white rectangles for simplicity)
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                for (let c of clouds) {
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, 25, 0, Math.PI * 2);
+                    ctx.arc(c.x + 25, c.y - 10, 30, 0, Math.PI * 2);
+                    ctx.arc(c.x + 50, c.y, 25, 0, Math.PI * 2);
+                    ctx.fill();
                 }
                 
                 // Draw stars
-                for (const star of stars) {
-                    star.draw();
+                ctx.fillStyle = '#ffd700';
+                for (let s of stars) {
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, 12, 0, Math.PI * 2);
+                    ctx.fill();
                 }
                 
-                // Draw plane
-                plane.draw();
+                // Draw plane (simple triangle/shape)
+                ctx.save();
+                ctx.translate(plane.x, plane.y);
+                ctx.rotate(plane.vy * 0.05);
                 
-                // Check collisions
-                const pb = plane.getBounds();
+                // Body
+                ctx.fillStyle = '#e0e0e0';
+                ctx.fillRect(-35, -8, 70, 16);
                 
-                for (const cloud of clouds) {
-                    if (collides(pb, cloud.getBounds())) {
-                        endGame();
+                // Nose
+                ctx.beginPath();
+                ctx.moveTo(35, -8);
+                ctx.lineTo(50, 0);
+                ctx.lineTo(35, 8);
+                ctx.fill();
+                
+                // Wings
+                ctx.fillStyle = '#4ecdc4';
+                ctx.beginPath();
+                ctx.moveTo(-10, -8);
+                ctx.lineTo(-25, -30);
+                ctx.lineTo(10, -8);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-10, 8);
+                ctx.lineTo(-25, 30);
+                ctx.lineTo(10, 8);
+                ctx.fill();
+                
+                // Tail
+                ctx.fillStyle = '#ff6b6b';
+                ctx.beginPath();
+                ctx.moveTo(-35, -5);
+                ctx.lineTo(-45, -20);
+                ctx.lineTo(-30, -5);
+                ctx.fill();
+                
+                // Cockpit
+                ctx.fillStyle = '#2c3e50';
+                ctx.beginPath();
+                ctx.arc(20, 0, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+                
+                // Collision detection with clouds
+                for (let c of clouds) {
+                    let dx = plane.x - (c.x + 25);
+                    let dy = plane.y - c.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 45) {
+                        // Game over
+                        playing = false;
+                        document.getElementById('menuTitle').textContent = 'Game Over! Score: ' + score;
+                        document.getElementById('menuText').textContent = 'You crashed into a cloud!';
+                        document.getElementById('startBtn').textContent = 'Play Again';
+                        document.getElementById('menu').classList.remove('hidden');
                         break;
                     }
                 }
                 
-                for (const star of stars) {
-                    if (!star.collected && collides(pb, star.getBounds())) {
-                        star.collected = true;
+                // Collision detection with stars
+                for (let i = stars.length - 1; i >= 0; i--) {
+                    let dx = plane.x - stars[i].x;
+                    let dy = plane.y - stars[i].y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 30) {
+                        stars.splice(i, 1);
                         score += 10;
                         document.getElementById('score').textContent = score;
-                        
-                        // Particles
-                        for (let i = 0; i < 10; i++) {
-                            particles.push(createParticle(star.x, star.y, 'rgba(255, 215, 0, 1)'));
-                        }
-                        
-                        // Increase difficulty
-                        if (score % 50 === 0) {
-                            gameSpeed = Math.min(gameSpeed + 0.3, 8);
-                        }
+                        if (score % 50 === 0) speed = Math.min(speed + 0.5, 10);
                     }
                 }
             }
             
-            // Update and draw particles
-            for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].update();
-                particles[i].draw();
-                if (particles[i].isDead()) {
-                    particles.splice(i, 1);
-                }
-            }
-            
-            requestAnimationFrame(gameLoop);
+            requestAnimationFrame(loop);
         }
-
-        // Start loop
-        gameLoop();
+        
+        // Start the loop
+        requestAnimationFrame(loop);
+    })();
     </script>
 </body>
 </html>
