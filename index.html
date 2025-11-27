@@ -17,23 +17,36 @@
         }
         #ui {
             position: fixed;
-            top: 20px;
-            left: 20px;
+            top: 15px;
+            left: 15px;
             color: #ffd700;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             z-index: 10;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 15px;
+            border-radius: 10px;
+        }
+        
+        @media (max-width: 600px) {
+            #ui {
+                font-size: 18px;
+                padding: 6px 12px;
+            }
         }
         #menu {
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
+            padding-top: 40px;
             z-index: 20;
+            overflow-y: auto;
+            box-sizing: border-box;
         }
         #menu.hidden { display: none; }
         #menu h1 {
@@ -43,7 +56,8 @@
         }
         #menu p {
             color: #aaa;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            padding: 0 10px;
         }
         #menu button {
             background: #ff6b6b;
@@ -55,18 +69,56 @@
             cursor: pointer;
         }
         #menu button:hover { background: #ff5252; }
+        
+        /* Mobile responsive */
+        @media (max-width: 600px) {
+            #menu {
+                padding: 20px;
+            }
+            #menu h1 {
+                font-size: 32px;
+            }
+            #menu p {
+                font-size: 14px;
+            }
+            #difficulties {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .diff-btn {
+                padding: 12px 30px;
+                font-size: 16px;
+                width: 80%;
+            }
+            #skins {
+                max-width: 90vw;
+                gap: 10px;
+            }
+            .skin-btn {
+                width: 55px;
+                height: 40px;
+            }
+            #menu button {
+                padding: 12px 30px;
+                font-size: 18px;
+            }
+        }
         #finalScore {
             color: #ffd700;
             font-size: 64px;
             margin: 20px 0;
         }
         #difficultySelector {
-            margin: 20px 0;
+            margin: 15px 0;
+            width: 100%;
+            text-align: center;
         }
         #difficulties {
             display: flex;
             gap: 10px;
             justify-content: center;
+            flex-wrap: wrap;
+            padding: 0 10px;
         }
         .diff-btn {
             padding: 10px 25px;
@@ -91,13 +143,21 @@
         .diff-btn.medium.selected { border-color: #f39c12; color: #f39c12; background: rgba(243, 156, 18, 0.1); }
         .diff-btn.hard.selected { border-color: #e74c3c; color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
         #skinSelector {
-            margin: 20px 0;
+            margin: 15px 0;
+            width: 100%;
+            text-align: center;
         }
         #skins {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             justify-content: center;
             flex-wrap: wrap;
+            padding: 0 10px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        #startBtn {
+            margin-bottom: 40px;
         }
         .skin-btn {
             width: 70px;
