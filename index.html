@@ -637,7 +637,7 @@
                 this.height = 40 + Math.random() * 30;
                 this.x = canvas.width + this.width;
                 this.y = Math.random() * (canvas.height - this.height - 100) + 50;
-                this.speed = gameSpeed + Math.random() * 2;
+                this.baseSpeed = 1 + Math.random() * 2;
                 this.opacity = 0.7 + Math.random() * 0.3;
                 this.puffs = [];
                 
@@ -653,7 +653,7 @@
             }
 
             update() {
-                this.x -= this.speed;
+                this.x -= (this.baseSpeed + gameSpeed);
             }
 
             draw() {
@@ -707,7 +707,7 @@
                 this.radius = 15;
                 this.x = canvas.width + this.radius;
                 this.y = Math.random() * (canvas.height - 100) + 50;
-                this.speed = gameSpeed + 1;
+                this.baseSpeed = 2;
                 this.rotation = 0;
                 this.rotationSpeed = 3 + Math.random() * 2;
                 this.pulsePhase = Math.random() * Math.PI * 2;
@@ -715,7 +715,7 @@
             }
 
             update() {
-                this.x -= this.speed;
+                this.x -= (this.baseSpeed + gameSpeed);
                 this.rotation += this.rotationSpeed;
                 this.pulsePhase += 0.1;
             }
@@ -1014,7 +1014,6 @@
                 // Update and draw clouds
                 clouds = clouds.filter(cloud => !cloud.isOffScreen());
                 clouds.forEach(cloud => {
-                    cloud.speed = gameSpeed + Math.random() * 0.5;
                     cloud.update();
                     cloud.draw();
                 });
@@ -1022,7 +1021,6 @@
                 // Update and draw stars
                 stars = stars.filter(star => !star.isOffScreen() && !star.collected);
                 stars.forEach(star => {
-                    star.speed = gameSpeed + 1;
                     star.update();
                     star.draw();
                 });
