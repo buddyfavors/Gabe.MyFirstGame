@@ -6,6 +6,10 @@
     <title>Sky Drifter</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
         body {
             background: #1a1a2e;
             overflow: hidden;
@@ -14,6 +18,7 @@
         #game {
             display: block;
             background: linear-gradient(#16213e, #1a1a2e);
+            touch-action: none;
         }
         #ui {
             position: fixed;
@@ -32,6 +37,55 @@
             align-items: flex-start;
             min-width: 150px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+        }
+        body.orientation-portrait #ui {
+            top: auto;
+            bottom: 12px;
+            left: 50%;
+            right: auto;
+            transform: translateX(-50%);
+            width: min(520px, calc(100vw - 24px));
+            min-width: 0;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px 12px;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        }
+        body.orientation-portrait #ui .score-row,
+        body.orientation-portrait #ui #coinTracker,
+        body.orientation-portrait #ui #diffDisplay {
+            flex: 1 1 calc(50% - 12px);
+            justify-content: center;
+            text-align: center;
+            display: flex;
+            align-items: center;
+        }
+        body.orientation-portrait #ui #diffDisplay {
+            font-size: 13px;
+            opacity: 0.85;
+        }
+        body.orientation-portrait #ui .status-line,
+        body.orientation-portrait #ui #shieldStatus,
+        body.orientation-portrait #ui #boostStatus {
+            flex: 1 1 100%;
+            text-align: center;
+            font-size: 12px;
+        }
+        body.orientation-portrait #ui .score-label {
+            font-size: 20px;
+        }
+        @media (max-width: 480px) {
+            body.orientation-portrait #ui {
+                font-size: 16px;
+            }
+            body.orientation-portrait #ui .score-row {
+                font-size: 18px;
+            }
         }
         .score-row {
             display: flex;
@@ -461,6 +515,9 @@
         const versionTag = document.getElementById('versionTag');
         const bankDisplay = document.getElementById('bankDisplay');
         const upgradeGrid = document.getElementById('upgradeGrid');
+        const bodyElement = document.body;
+        const ORIENTATION_PORTRAIT_CLASS = 'orientation-portrait';
+        const ORIENTATION_LANDSCAPE_CLASS = 'orientation-landscape';
         const defaultMenuTitle = menuTitle ? menuTitle.textContent : '';
         const defaultMenuText = menuText ? menuText.innerHTML : '';
         const VERSION_SOURCE = 'version.json';
@@ -493,7 +550,25 @@
                     updateVersionTag(VERSION_FALLBACK_TEXT);
                 });
         }
+        function applyOrientationMode() {
+            if (!bodyElement) return;
+            const isPortrait = window.innerHeight >= window.innerWidth;
+            bodyElement.classList.toggle(ORIENTATION_PORTRAIT_CLASS, isPortrait);
+            bodyElement.classList.toggle(ORIENTATION_LANDSCAPE_CLASS, !isPortrait);
+        }
         loadVersionInfo();
+        applyOrientationMode();
+        if (window.matchMedia) {
+            const portraitQuery = window.matchMedia('(orientation: portrait)');
+            if (portraitQuery) {
+                if (typeof portraitQuery.addEventListener === 'function') {
+                    portraitQuery.addEventListener('change', applyOrientationMode);
+                } else if (typeof portraitQuery.addListener === 'function') {
+                    portraitQuery.addListener(applyOrientationMode);
+                }
+            }
+        }
+        window.addEventListener('orientationchange', applyOrientationMode);
         
         function setStatusLine(el, text, mode) {
             if (!el) return;
@@ -959,6 +1034,7 @@
         
         window.addEventListener('resize', function() {
             resize();
+            applyOrientationMode();
             if (!playing) {
                 resetPlanePosition();
             }
