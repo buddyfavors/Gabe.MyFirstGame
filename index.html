@@ -394,6 +394,8 @@
             font-size: 16px;
             cursor: pointer;
             transition: all 0.2s;
+            position: relative;
+            min-width: 100px;
         }
         .diff-btn:hover {
             border-color: #888;
@@ -403,10 +405,40 @@
             border-color: #4ecdc4;
             color: #4ecdc4;
             background: rgba(78, 205, 196, 0.1);
+            box-shadow: 0 8px 22px rgba(78, 205, 196, 0.35);
+            transform: translateY(-2px) scale(1.02);
+        }
+        .diff-btn.selected::after {
+            content: 'Active';
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #ffd700;
         }
         .diff-btn.easy.selected { border-color: #2ecc71; color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
         .diff-btn.medium.selected { border-color: #f39c12; color: #f39c12; background: rgba(243, 156, 18, 0.1); }
         .diff-btn.hard.selected { border-color: #e74c3c; color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
+        .diff-btn.impossible.selected { border-color: #c0392b; color: #c0392b; background: rgba(192, 57, 43, 0.1); }
+        #difficultyIndicator {
+            margin-top: 24px;
+            color: #ffd27f;
+            font-size: 14px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        #difficultyIndicator strong {
+            letter-spacing: normal;
+            font-size: 18px;
+            color: #ffffff;
+        }
+        #difficultyIndicator[data-difficulty="easy"] strong { color: #2ecc71; }
+        #difficultyIndicator[data-difficulty="medium"] strong { color: #f39c12; }
+        #difficultyIndicator[data-difficulty="hard"] strong { color: #e74c3c; }
+        #difficultyIndicator[data-difficulty="impossible"] strong { color: #c0392b; }
         #skinSelector {
             margin: 15px 0;
             width: 100%;
@@ -422,7 +454,7 @@
             margin: 0 auto;
         }
         #startBtn {
-            margin-bottom: 40px;
+            margin: 25px auto 35px;
         }
         .skin-btn {
             width: 70px;
@@ -476,12 +508,15 @@
         <div id="difficultySelector">
             <p style="color: #aaa; margin-bottom: 10px;">Select Difficulty:</p>
             <div id="difficulties"></div>
+            <div id="difficultyIndicator" role="status" aria-live="polite"></div>
         </div>
         
         <div id="skinSelector">
             <p style="color: #aaa; margin-bottom: 10px;">Choose your plane:</p>
             <div id="skins"></div>
         </div>
+
+        <button id="startBtn">Play</button>
         
         <div id="hangarPanel">
             <div class="hangar-header">
@@ -491,8 +526,6 @@
             <p class="hangar-note">Coins earned per run are deposited automatically when missions end.</p>
             <div id="upgradeGrid"></div>
         </div>
-        
-        <button id="startBtn">Play</button>
     </div>
 
     <script>
@@ -508,6 +541,7 @@
         const weatherStatus = document.getElementById('weatherStatus');
         const comboStatus = document.getElementById('comboStatus');
         const upgradeStatus = document.getElementById('upgradeStatus');
+        const diffDisplay = document.getElementById('diffDisplay');
         const menu = document.getElementById('menu');
         const menuTitle = document.getElementById('menuTitle');
         const menuText = document.getElementById('menuText');
@@ -515,6 +549,7 @@
         const versionTag = document.getElementById('versionTag');
         const bankDisplay = document.getElementById('bankDisplay');
         const upgradeGrid = document.getElementById('upgradeGrid');
+        const difficultyIndicator = document.getElementById('difficultyIndicator');
         const bodyElement = document.body;
         const ORIENTATION_PORTRAIT_CLASS = 'orientation-portrait';
         const ORIENTATION_LANDSCAPE_CLASS = 'orientation-landscape';
@@ -889,7 +924,35 @@
                 jetActivationDelay: 3500
             }
         ];
-        let selectedDifficulty = 0;
+        const DIFFICULTY_STORAGE_KEY = 'sky_drifter_difficulty_v1';
+        const DEFAULT_DIFFICULTY_INDEX = 1;
+
+        function loadDifficultyPreference() {
+            if (typeof window === 'undefined' || !window.localStorage) {
+                return DEFAULT_DIFFICULTY_INDEX;
+            }
+            try {
+                const stored = window.localStorage.getItem(DIFFICULTY_STORAGE_KEY);
+                const parsed = parseInt(stored, 10);
+                if (!Number.isNaN(parsed) && parsed >= 0 && parsed < difficulties.length) {
+                    return parsed;
+                }
+            } catch (err) {
+                // Ignore preference errors
+            }
+            return DEFAULT_DIFFICULTY_INDEX;
+        }
+
+        function saveDifficultyPreference(index) {
+            if (typeof window === 'undefined' || !window.localStorage) return;
+            try {
+                window.localStorage.setItem(DIFFICULTY_STORAGE_KEY, String(index));
+            } catch (err) {
+                // Ignore persistence failures
+            }
+        }
+
+        let selectedDifficulty = loadDifficultyPreference();
 
         // Create difficulty selector
         function createDifficultySelector() {
@@ -898,17 +961,34 @@
             
             difficulties.forEach((diff, index) => {
                 const btn = document.createElement('button');
+                btn.type = 'button';
                 btn.className = 'diff-btn ' + diff.name.toLowerCase() + (index === selectedDifficulty ? ' selected' : '');
                 btn.textContent = diff.name;
+                btn.setAttribute('aria-pressed', index === selectedDifficulty ? 'true' : 'false');
                 btn.onclick = function() {
                     selectedDifficulty = index;
-                    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+                    document.querySelectorAll('.diff-btn').forEach(b => {
+                        b.classList.remove('selected');
+                        b.setAttribute('aria-pressed', 'false');
+                    });
                     btn.classList.add('selected');
+                    btn.setAttribute('aria-pressed', 'true');
+                    saveDifficultyPreference(index);
+                    updateDifficultyIndicator();
                 };
                 container.appendChild(btn);
             });
         }
         createDifficultySelector();
+
+        function updateDifficultyIndicator() {
+            if (!difficultyIndicator) return;
+            const diff = difficulties[selectedDifficulty];
+            const multiplierLabel = 'x' + (selectedDifficulty + 1) + ' points';
+            difficultyIndicator.dataset.difficulty = diff.name.toLowerCase();
+            difficultyIndicator.innerHTML = `<strong>${diff.name}</strong> · ${multiplierLabel}`;
+        }
+        updateDifficultyIndicator();
 
         // Plane skins
         const planeSkins = [
@@ -919,7 +999,10 @@
             { name: 'Stealth', body: '#2d3436', wings: '#636e72', tail: '#b2bec3', cockpit: '#dfe6e9' },
             { name: 'Gold', body: '#ffd700', wings: '#ff8c00', tail: '#ff6348', cockpit: '#2f3542' },
             { name: 'Cotton Candy', body: '#fd79a8', wings: '#a29bfe', tail: '#74b9ff', cockpit: '#2d3436' },
-            { name: 'Midnight', body: '#6c5ce7', wings: '#a29bfe', tail: '#fd79a8', cockpit: '#dfe6e9' }
+            { name: 'Midnight', body: '#6c5ce7', wings: '#a29bfe', tail: '#fd79a8', cockpit: '#dfe6e9' },
+            { name: 'Harvest Glow', body: '#c97b25', wings: '#f4a261', tail: '#ffe194', cockpit: '#2d3436' },
+            { name: 'Cranberry Spice', body: '#8c1c13', wings: '#d17a22', tail: '#f6bd60', cockpit: '#1b1b1b' },
+            { name: 'Pumpkin Pie', body: '#d35400', wings: '#f39c12', tail: '#f8c291', cockpit: '#2c3e50' }
         ];
         let selectedSkin = 0;
 
@@ -1649,7 +1732,9 @@
             
             // Show difficulty and point multiplier
             const diff = difficulties[selectedDifficulty];
-            document.getElementById('diffDisplay').textContent = diff.name + ' (x' + currentMultiplier + ' points)';
+            if (diffDisplay) {
+                diffDisplay.textContent = `${diff.name} (x${currentMultiplier} points)`;
+            }
             
             if (menu) menu.classList.add('hidden');
         };
