@@ -106,6 +106,12 @@
             20% { opacity: 1; transform: translate(0, -22px); }
             100% { opacity: 0; transform: translate(-8px, -40px); }
         }
+        #shieldStatus {
+            font-size: 14px;
+            color: #4ecdc4;
+            min-height: 18px;
+            letter-spacing: 0.5px;
+        }
         
         @media (max-width: 600px) {
             #ui {
@@ -278,6 +284,7 @@
             <div id="coinGainTag"></div>
         </div>
         <div id="diffDisplay" style="font-size: 14px; margin-top: 5px; opacity: 0.7;"></div>
+        <div id="shieldStatus"></div>
     </div>
     
     <div id="menu">
@@ -305,6 +312,7 @@
         const coinDisplay = document.getElementById('coins');
         const coinIcon = document.getElementById('coinIcon');
         const coinGainTag = document.getElementById('coinGainTag');
+        const shieldStatus = document.getElementById('shieldStatus');
         const menu = document.getElementById('menu');
         const menuTitle = document.getElementById('menuTitle');
         const menuText = document.getElementById('menuText');
@@ -320,6 +328,13 @@
         const JET_SONIC_SPEED = 15;
         const JET_FIRE_INTERVAL_MIN = 900;
         const JET_FIRE_INTERVAL_MAX = 1400;
+        const BIG_COIN_VALUE = 5; // 5 coins = 50 points before multiplier
+        const BIG_COIN_INTERVAL = 10000;
+        const BIG_COIN_CHANCE = 0.45;
+        const BIG_COIN_LIMIT = 1;
+        const POWERUP_INTERVAL = 14000;
+        const POWERUP_LIMIT = 1;
+        const SHIELD_DURATION = 5000;
         
         function resize() {
             canvas.width = window.innerWidth;
@@ -486,6 +501,8 @@
         let burstEffects = [];
         let screenFlashAlpha = 0;
         let coinGainTimeout = null;
+        let shieldActive = false;
+        let shieldExpiresAt = 0;
         
         function resetPlanePosition() {
             plane.x = canvas.width * PLANE_X_RATIO;
@@ -504,6 +521,8 @@
         // Objects
         let clouds = [];
         let stars = [];
+        let bigCoins = [];
+        let powerups = [];
         let pterodactyls = [];
         let fighterJets = [];
         let missiles = [];
@@ -516,6 +535,8 @@
         
         let lastPterodactyl = 0;
         let lastFighterJet = 0;
+        let lastBigCoin = 0;
+        let lastPowerup = 0;
         let jetActivationStart = 0;
         const PTERODACTYL_LIMIT = 2;
         const FIGHTER_JET_LIMIT = 2;
@@ -552,6 +573,67 @@
             coinGainTimeout = setTimeout(() => {
                 coinGainTag.classList.remove('visible');
             }, 650);
+        }
+
+        function awardCoins(amount, time, options = {}) {
+            if (amount <= 0) return;
+            const prevTotal = totalStarsCollected;
+            coinsCollected += amount;
+            totalStarsCollected += amount;
+            score = coinsCollected * 10 * currentMultiplier;
+            triggerCoinGainEffect(
+                options.sourceX !== undefined ? options.sourceX : plane.x,
+                options.sourceY !== undefined ? options.sourceY : plane.y,
+                amount * 10 * currentMultiplier,
+                time
+            );
+            updateScoreDisplay();
+            updateCoinDisplay();
+            pulseCoinIcon();
+            showCoinGainTag(options.coinTagText || ('+' + amount));
+            const prevSteps = Math.floor(prevTotal / 5);
+            const currentSteps = Math.floor(totalStarsCollected / 5);
+            const gainedSteps = currentSteps - prevSteps;
+            if (gainedSteps > 0) {
+                speed = Math.min(speed + 0.5 * gainedSteps, 10);
+            }
+        }
+
+        function setShieldStatus(text) {
+            if (shieldStatus) {
+                shieldStatus.textContent = text || '';
+            }
+        }
+
+        function activateShield(time) {
+            shieldActive = true;
+            shieldExpiresAt = time + SHIELD_DURATION;
+            setShieldStatus('Shield ready');
+            triggerBurstEffect({
+                x: plane.x,
+                y: plane.y,
+                color: '#4ecdc4',
+                textColor: '#e0fffb',
+                label: 'Shield!',
+                type: 'reward'
+            }, time);
+        }
+
+        function deactivateShield() {
+            shieldActive = false;
+            shieldExpiresAt = 0;
+            setShieldStatus('');
+        }
+
+        function handleShieldBlock(label, time) {
+            triggerBurstEffect({
+                x: plane.x,
+                y: plane.y,
+                color: '#4ecdc4',
+                textColor: '#e0fffb',
+                label: label || 'Blocked',
+                type: 'reward'
+            }, time);
         }
 
         function randomInRange(min, max) {
@@ -602,6 +684,10 @@
         }
         
         function applyCoinDamage(options, time) {
+            if (shieldActive) {
+                handleShieldBlock('Shielded', time);
+                return;
+            }
             const { amount = 0, all = false, color = '#ff6b6b', label } = options || {};
             const before = coinsCollected;
             coinsCollected = all ? 0 : Math.max(0, coinsCollected - amount);
@@ -626,8 +712,11 @@
             pterodactyls = [];
             clouds = [];
             stars = [];
+            bigCoins = [];
+            powerups = [];
             burstEffects = [];
             screenFlashAlpha = 0;
+            deactivateShield();
             if (menuTitle) menuTitle.textContent = 'Mission Failed';
             if (menuText) {
                 menuText.innerHTML = `${reason}<br><br>Coins: ${coinsCollected}<br>Score: ${score}`;
@@ -694,6 +783,8 @@
             resetPlanePosition();
             clouds = [];
             stars = [];
+            bigCoins = [];
+            powerups = [];
             pterodactyls = [];
             fighterJets = [];
             missiles = [];
@@ -701,6 +792,7 @@
             totalStarsCollected = 0;
             jetsActive = false;
             currentMultiplier = selectedDifficulty + 1;
+            deactivateShield();
             updateCoinDisplay();
             if (coinGainTag) {
                 coinGainTag.textContent = '';
@@ -709,6 +801,8 @@
             const now = performance.now();
             lastPterodactyl = now;
             lastFighterJet = now;
+            lastBigCoin = now;
+            lastPowerup = now;
             jetActivationStart = now;
             updateScoreDisplay();
             
@@ -730,6 +824,15 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             if (playing) {
+                if (shieldActive) {
+                    const remaining = Math.max(shieldExpiresAt - time, 0);
+                    if (remaining <= 0) {
+                        deactivateShield();
+                    } else {
+                        setShieldStatus('Shield ' + (remaining / 1000).toFixed(1) + 's');
+                    }
+                }
+                
                 // Spawn clouds based on difficulty
                 const diff = difficulties[selectedDifficulty];
                 const pterodactylInterval = diff.pterodactylInterval || BASE_PTERODACTYL_INTERVAL;
@@ -772,6 +875,30 @@
                         y: Math.random() * (canvas.height - 100) + 50
                     });
                     lastStar = time;
+                }
+                
+                if (time - lastBigCoin > BIG_COIN_INTERVAL) {
+                    lastBigCoin = time;
+                    if (bigCoins.length < BIG_COIN_LIMIT && Math.random() < BIG_COIN_CHANCE) {
+                        bigCoins.push({
+                            x: canvas.width + 60,
+                            y: Math.random() * (canvas.height - 160) + 80,
+                            pulse: Math.random() * Math.PI * 2
+                        });
+                    }
+                }
+                
+                if (time - lastPowerup > POWERUP_INTERVAL) {
+                    lastPowerup = time;
+                    if (powerups.length < POWERUP_LIMIT) {
+                        powerups.push({
+                            x: canvas.width + 60,
+                            y: Math.random() * (canvas.height - 140) + 70,
+                            type: 'shield',
+                            drift: Math.random() * Math.PI * 2,
+                            rotation: Math.random() * Math.PI * 2
+                        });
+                    }
                 }
                 
                 // Spawn pterodactyls that fly toward the plane
@@ -833,6 +960,28 @@
                 for (let i = stars.length - 1; i >= 0; i--) {
                     stars[i].x -= speed + 1;
                     if (stars[i].x < -20) stars.splice(i, 1);
+                }
+                
+                // Update big coins
+                for (let i = bigCoins.length - 1; i >= 0; i--) {
+                    const big = bigCoins[i];
+                    big.x -= speed + 0.9;
+                    big.pulse = (big.pulse || 0) + 0.05;
+                    big.wobble = Math.sin((time / 250) + big.pulse) * 2;
+                    if (big.x < -100) {
+                        bigCoins.splice(i, 1);
+                    }
+                }
+                
+                // Update powerups
+                for (let i = powerups.length - 1; i >= 0; i--) {
+                    const item = powerups[i];
+                    item.x -= speed + 0.7;
+                    item.drift += 0.03;
+                    item.y += Math.sin(item.drift) * 0.7;
+                    if (item.x < -80) {
+                        powerups.splice(i, 1);
+                    }
                 }
                 
                 // Update pterodactyls and handle collisions
@@ -900,8 +1049,12 @@
                     let dy = plane.y - m.y;
                     if (Math.sqrt(dx*dx + dy*dy) < 25) {
                         missiles.splice(i, 1);
-                        handlePlayerDeath('A fighter jet missile hit you!');
-                        break;
+                        if (shieldActive) {
+                            handleShieldBlock('Shielded', time);
+                        } else {
+                            handlePlayerDeath('A fighter jet missile hit you!');
+                            break;
+                        }
                     }
                 }
                 
@@ -953,6 +1106,68 @@
                     ctx.beginPath();
                     ctx.arc(s.x, s.y, 6, -Math.PI / 3, Math.PI / 2);
                     ctx.stroke();
+                }
+                
+                // Draw BIG coins
+                for (let big of bigCoins) {
+                    const radius = 22 + Math.sin(big.pulse || 0) * 2;
+                    ctx.save();
+                    ctx.translate(big.x, big.y + (big.wobble || 0));
+                    ctx.rotate(Math.sin((big.pulse || 0) * 0.7) * 0.2);
+                    const gradient = ctx.createRadialGradient(-6, -8, 6, 0, 0, radius);
+                    gradient.addColorStop(0, '#fff5c3');
+                    gradient.addColorStop(0.4, '#ffe066');
+                    gradient.addColorStop(1, '#c9960c');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius - 4, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+                    ctx.font = 'bold 28px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('50', 0, 0);
+                    ctx.restore();
+                }
+                
+                // Draw powerups
+                for (let item of powerups) {
+                    ctx.save();
+                    ctx.translate(item.x, item.y);
+                    ctx.rotate((item.rotation || 0) + time / 400);
+                    const pulse = 1 + Math.sin((time / 200) + item.drift) * 0.1;
+                    ctx.scale(pulse, pulse);
+                    ctx.fillStyle = 'rgba(78, 205, 196, 0.25)';
+                    ctx.shadowColor = '#4ecdc4';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (Math.PI / 3) * i;
+                        const x = Math.cos(angle) * 26;
+                        const y = Math.sin(angle) * 26;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = '#4ecdc4';
+                    ctx.stroke();
+                    ctx.fillStyle = '#e0fffb';
+                    ctx.font = 'bold 16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('S', 0, 0);
+                    ctx.restore();
                 }
                 
                 // Draw pterodactyls
@@ -1156,6 +1371,20 @@
                 
                 ctx.restore();
                 
+                if (shieldActive) {
+                    ctx.save();
+                    ctx.translate(plane.x, plane.y);
+                    ctx.strokeStyle = 'rgba(78, 205, 196, 0.8)';
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#4ecdc4';
+                    ctx.shadowBlur = 15;
+                    const pulse = 45 + Math.sin(time / 200) * 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, pulse, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                
                 // Collision detection with clouds (adjusted for size)
                 for (let i = clouds.length - 1; i >= 0; i--) {
                     const c = clouds[i];
@@ -1176,15 +1405,31 @@
                     let dy = plane.y - star.y;
                     if (Math.sqrt(dx*dx + dy*dy) < 30) {
                         stars.splice(i, 1);
-                        coinsCollected += 1;
-                        totalStarsCollected += 1;
-                        score = coinsCollected * 10 * currentMultiplier;
-                        triggerCoinGainEffect(star.x, star.y, 10 * currentMultiplier, time);
-                        updateScoreDisplay();
-                        updateCoinDisplay();
-                        pulseCoinIcon();
-                        showCoinGainTag('+1');
-                        if (totalStarsCollected % 5 === 0) speed = Math.min(speed + 0.5, 10);
+                        awardCoins(1, time, { sourceX: star.x, sourceY: star.y });
+                    }
+                }
+                
+                // Collision detection with big coins
+                for (let i = bigCoins.length - 1; i >= 0; i--) {
+                    const big = bigCoins[i];
+                    let dx = plane.x - big.x;
+                    let dy = plane.y - big.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 40) {
+                        bigCoins.splice(i, 1);
+                        awardCoins(BIG_COIN_VALUE, time, { sourceX: big.x, sourceY: big.y });
+                    }
+                }
+                
+                // Collision detection with powerups
+                for (let i = powerups.length - 1; i >= 0; i--) {
+                    const item = powerups[i];
+                    let dx = plane.x - item.x;
+                    let dy = plane.y - item.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 38) {
+                        powerups.splice(i, 1);
+                        if (item.type === 'shield') {
+                            activateShield(time);
+                        }
                     }
                 }
             }
