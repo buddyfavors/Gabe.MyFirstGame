@@ -916,9 +916,9 @@
                 cloudSize: 2.6,          // Humongous clouds
                 spawnRate: 900,          // Very frequent spawns
                 cloudCount: 3,           // Clouds arrive in waves
-                falconLimit: 8,          // Way more airborne threats
-                falconInterval: 1700,
-                falconBurst: 2,
+                flockLimit: 8,           // Way more airborne threats
+                flockInterval: 1700,
+                flockBurst: 2,
                 fighterJetLimit: 4,
                 jetSpawnInterval: 2400,
                 jetActivationDelay: 3500
@@ -1128,7 +1128,7 @@
         let stars = [];
         let bigCoins = [];
         let powerups = [];
-        let falcons = [];
+        let gooseFlocks = [];
         let fighterJets = [];
         let missiles = [];
         
@@ -1136,31 +1136,34 @@
         const BIG_COIN_BASE_RADIUS = 26;
         const SMALL_COIN_PICKUP_PADDING = 14;
         const BIG_COIN_PICKUP_PADDING = 16;
-        // Chromatic options for the new peregrine-inspired falcons
-        const FALCON_VARIANTS = [
+        // Color palettes for migrating geese formations
+        const GOOSE_VARIANTS = [
             {
-                body: '#5c7dc3',
-                wing: '#2c3d68',
-                belly: '#f5eddc',
-                crest: '#dbe6ff',
-                beak: '#f7c144',
-                detail: '#1a2238'
+                body: '#f5f5f0',
+                wing: '#cfd6e3',
+                belly: '#ffffff',
+                neck: '#2f3542',
+                head: '#1b1f29',
+                beak: '#ffb347',
+                accent: '#adb5c1'
             },
             {
-                body: '#f06c3b',
-                wing: '#922c1d',
-                belly: '#ffdcb6',
-                crest: '#f4a259',
-                beak: '#ffe066',
-                detail: '#4b1f14'
+                body: '#fdf2dc',
+                wing: '#d9c2a7',
+                belly: '#fff7ea',
+                neck: '#4a3728',
+                head: '#2f2115',
+                beak: '#ffcb69',
+                accent: '#b08968'
             },
             {
-                body: '#3da5a5',
-                wing: '#20585a',
-                belly: '#e9fff9',
-                crest: '#b2f5ea',
-                beak: '#ffe066',
-                detail: '#123436'
+                body: '#e6f5ff',
+                wing: '#b4c8d5',
+                belly: '#f8fdff',
+                neck: '#1f2a38',
+                head: '#111a24',
+                beak: '#ffd479',
+                accent: '#90a5b4'
             }
         ];
         
@@ -1170,14 +1173,14 @@
         let jetsActive = false;
         updateCoinDisplay();
         
-        let lastFalcon = 0;
+        let lastGooseFlock = 0;
         let lastFighterJet = 0;
         let lastBigCoin = 0;
         let lastPowerup = 0;
         let jetActivationStart = 0;
-        const FALCON_LIMIT = 2;
+        const GEESE_FLOCK_LIMIT = 2;
         const FIGHTER_JET_LIMIT = 2;
-        const BASE_FALCON_INTERVAL = 5000;
+        const BASE_GOOSE_INTERVAL = 5000;
         
         function updateScoreDisplay() {
             document.getElementById('score').textContent = score;
@@ -1586,160 +1589,126 @@
             ctx.fill();
         }
         
-        // Stylized falcon with broad wings and a masked head
-        function drawFalconSprite(ctx, falcon, time) {
-            const palette = falcon.palette || FALCON_VARIANTS[0];
-            const scale = (falcon.scale || 1) * 1.05;
-            const span = falcon.wingSpan || 120;
-            const wingBeat = Math.sin((time / 180) + (falcon.flapOffset || 0));
-            const bank = (falcon.glideTilt || 0) + wingBeat * 0.04;
-            const shoulder = 16;
-            const wingTip = span * 0.7;
-            const bodyLength = 72;
-            
-            ctx.scale(scale, scale);
-            ctx.rotate(bank);
-            
-            const drawWing = (flip = 1) => {
-                ctx.save();
-                ctx.scale(1, flip);
-                
-                const wingGradient = ctx.createLinearGradient(0, -shoulder, -wingTip, shoulder * 2);
-                wingGradient.addColorStop(0, palette.wing);
-                wingGradient.addColorStop(0.7, palette.body);
-                wingGradient.addColorStop(1, palette.detail);
-                ctx.fillStyle = wingGradient;
-                
-                ctx.beginPath();
-                ctx.moveTo(8, -shoulder);
-                ctx.quadraticCurveTo(-span * 0.15, -36 - wingBeat * 6, -span * 0.35, -18);
-                ctx.quadraticCurveTo(-wingTip, -20 - wingBeat * 24, -wingTip, 0);
-                ctx.quadraticCurveTo(-wingTip, 32 + wingBeat * 12, -span * 0.4, 18);
-                ctx.quadraticCurveTo(-span * 0.18, 8 + wingBeat * 8, 6, shoulder);
-                ctx.closePath();
-                ctx.fill();
-                
-                ctx.strokeStyle = palette.detail;
-                ctx.lineWidth = 1.1;
-                ctx.beginPath();
-                ctx.moveTo(-span * 0.28, -8);
-                ctx.lineTo(-wingTip * 0.82, -2);
-                ctx.moveTo(-span * 0.3, 4);
-                ctx.lineTo(-wingTip * 0.76, 18);
-                ctx.stroke();
-                
-                ctx.fillStyle = palette.detail;
-                for (let i = 0; i < 3; i++) {
-                    const offset = (-wingTip * 0.9) + i * (wingTip * 0.22);
-                    ctx.beginPath();
-                    ctx.moveTo(offset, -2);
-                    ctx.quadraticCurveTo(offset - 10, 12, offset + 14, 28);
-                    ctx.quadraticCurveTo(offset + 2, 12, offset, -2);
-                    ctx.fill();
-                }
-                ctx.restore();
-            };
-            
-            drawWing(1);
-            drawWing(-1);
-            
+        // Draw a single goose used to compose migrating flocks
+        function drawMigratingGoose(ctx, palette, wingPhase, scale = 1) {
+            const wingBeat = Math.sin(wingPhase);
             ctx.save();
-            ctx.rotate(-0.25 + wingBeat * 0.05);
-            const tailGradient = ctx.createLinearGradient(-bodyLength, 0, -18, 0);
-            tailGradient.addColorStop(0, palette.detail);
-            tailGradient.addColorStop(1, palette.belly);
-            ctx.fillStyle = tailGradient;
+            ctx.scale(scale, scale);
+            
+            ctx.fillStyle = palette.wing;
             ctx.beginPath();
-            ctx.moveTo(-20, -4);
-            ctx.lineTo(-bodyLength, -18);
-            ctx.lineTo(-bodyLength - 8, 0);
-            ctx.lineTo(-bodyLength, 18);
-            ctx.lineTo(-20, 6);
+            ctx.moveTo(-6, 0);
+            ctx.quadraticCurveTo(-28, -8 - wingBeat * 18, -44, -4 - wingBeat * 14);
+            ctx.quadraticCurveTo(-24, -2, -6, 0);
             ctx.closePath();
             ctx.fill();
-            
-            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(-bodyLength + 8, -10);
-            ctx.lineTo(-bodyLength - 2, 0);
-            ctx.lineTo(-bodyLength + 8, 10);
-            ctx.stroke();
-            ctx.restore();
-            
-            const bodyGradient = ctx.createLinearGradient(-40, -18, 32, 22);
-            bodyGradient.addColorStop(0, palette.detail);
-            bodyGradient.addColorStop(0.55, palette.body);
-            bodyGradient.addColorStop(1, palette.belly);
-            ctx.fillStyle = bodyGradient;
-            ctx.beginPath();
-            ctx.moveTo(26, -8);
-            ctx.quadraticCurveTo(6, -30, -24, -18);
-            ctx.quadraticCurveTo(-40, -8, -40, 0);
-            ctx.quadraticCurveTo(-40, 10, -24, 18);
-            ctx.quadraticCurveTo(4, 32, 26, 8);
-            ctx.closePath();
-            ctx.fill();
-            
-            ctx.fillStyle = palette.belly;
-            ctx.beginPath();
-            ctx.moveTo(4, -4);
-            ctx.quadraticCurveTo(-14, -6, -18, -2);
-            ctx.quadraticCurveTo(-12, 12, 6, 16);
-            ctx.quadraticCurveTo(16, 8, 4, -4);
-            ctx.fill();
-            
-            ctx.fillStyle = palette.detail;
-            ctx.beginPath();
-            ctx.moveTo(-4, 10);
-            ctx.lineTo(-10, 24);
-            ctx.lineTo(0, 20);
-            ctx.lineTo(6, 30);
-            ctx.lineTo(10, 18);
+            ctx.moveTo(-6, 0);
+            ctx.quadraticCurveTo(-28, 8 + wingBeat * 18, -44, 4 + wingBeat * 14);
+            ctx.quadraticCurveTo(-24, 2, -6, 0);
             ctx.closePath();
             ctx.fill();
             
             ctx.fillStyle = palette.body;
             ctx.beginPath();
-            ctx.moveTo(22, -2);
-            ctx.quadraticCurveTo(36, -16, 46, -6);
-            ctx.quadraticCurveTo(34, 10, 18, 12);
+            ctx.ellipse(-6, 0, 18, 7.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = palette.belly;
+            ctx.beginPath();
+            ctx.ellipse(-8, 2, 14, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = palette.accent;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-18, 3);
+            ctx.lineTo(2, 2);
+            ctx.stroke();
+            
+            ctx.fillStyle = palette.accent;
+            ctx.beginPath();
+            ctx.moveTo(-18, -2);
+            ctx.lineTo(-26, -8);
+            ctx.lineTo(-24, 4);
             ctx.closePath();
             ctx.fill();
             
-            ctx.fillStyle = palette.crest;
+            ctx.fillStyle = palette.neck;
             ctx.beginPath();
-            ctx.moveTo(6, -12);
-            ctx.lineTo(-2, -28);
-            ctx.lineTo(-6, -8);
+            ctx.moveTo(0, -2);
+            ctx.quadraticCurveTo(14, -4 - wingBeat * 2, 16, -2);
+            ctx.lineTo(16, 2);
+            ctx.quadraticCurveTo(0, 2 + wingBeat * 2, 0, 0);
             ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillStyle = palette.head;
+            ctx.beginPath();
+            ctx.ellipse(18, -1, 4.3, 3.2, 0, 0, Math.PI * 2);
             ctx.fill();
             
             ctx.fillStyle = palette.beak;
             ctx.beginPath();
-            ctx.moveTo(24, -2);
-            ctx.lineTo(50, -6);
-            ctx.lineTo(58, 0);
-            ctx.lineTo(50, 6);
-            ctx.lineTo(24, 2);
+            ctx.moveTo(22, -1);
+            ctx.lineTo(30, -0.5);
+            ctx.lineTo(22, 2.2);
             ctx.closePath();
             ctx.fill();
             
-            ctx.strokeStyle = palette.detail;
-            ctx.lineWidth = 1.1;
-            ctx.beginPath();
-            ctx.moveTo(28, -1);
-            ctx.lineTo(48, -1);
-            ctx.stroke();
-            
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
-            ctx.arc(12, -6, 3, 0, Math.PI * 2);
+            ctx.arc(17.2, -2.2, 0.9, 0, Math.PI * 2);
             ctx.fill();
-            ctx.fillStyle = palette.detail;
+            ctx.fillStyle = '#111';
             ctx.beginPath();
-            ctx.arc(13, -6, 1.4, 0, Math.PI * 2);
+            ctx.arc(17.5, -2.2, 0.4, 0, Math.PI * 2);
             ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Render a migrating flock with a subtle V formation
+        function drawGooseFlockSprite(ctx, flock, time) {
+            if (!flock || !flock.geese || flock.geese.length === 0) return;
+            const palette = flock.palette || GOOSE_VARIANTS[0];
+            const wingBase = (time / 220) + (flock.flapOffset || 0);
+            const scale = flock.scale || 1;
+            
+            ctx.rotate(flock.glideTilt || 0);
+            
+            if (flock.geese.length > 1) {
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.08 + (flock.ribbonAlpha || 0.1)})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                const leftMost = flock.geese.reduce((acc, bird) => {
+                    if (!acc || bird.xOffset < acc.xOffset) return bird;
+                    return acc;
+                }, null);
+                const rightMost = flock.geese.reduce((acc, bird) => {
+                    if (!acc || bird.xOffset > acc.xOffset) return bird;
+                    return acc;
+                }, null);
+                if (leftMost) {
+                    ctx.lineTo(leftMost.xOffset * scale * 1.05, leftMost.yOffset * scale * 1.05);
+                    ctx.moveTo(0, 0);
+                }
+                if (rightMost) {
+                    ctx.lineTo(rightMost.xOffset * scale * 1.05, rightMost.yOffset * scale * 1.05);
+                }
+                ctx.stroke();
+            }
+            
+            for (let i = 0; i < flock.geese.length; i++) {
+                const goose = flock.geese[i];
+                ctx.save();
+                const bob = Math.sin((time / 260) + (goose.phase || 0)) * (goose.bob || 1.2);
+                ctx.translate(goose.xOffset * scale, (goose.yOffset + bob) * scale);
+                const gooseScale = (goose.scale || 1) * scale;
+                drawMigratingGoose(ctx, palette, wingBase + (goose.phase || 0), gooseScale);
+                ctx.restore();
+            }
         }
 
         function startJetEscape(jet, time) {
@@ -1796,7 +1765,7 @@
             jetsActive = false;
             missiles = [];
             fighterJets = [];
-            falcons = [];
+            gooseFlocks = [];
             clouds = [];
             stars = [];
             bigCoins = [];
@@ -1888,7 +1857,7 @@
             stars = [];
             bigCoins = [];
             powerups = [];
-            falcons = [];
+            gooseFlocks = [];
             fighterJets = [];
             missiles = [];
             coinsCollected = 0;
@@ -1953,9 +1922,9 @@
                 
                 // Spawn clouds based on difficulty
                 const diff = difficulties[selectedDifficulty];
-                const falconInterval = diff.falconInterval || BASE_FALCON_INTERVAL;
-                const falconLimit = diff.falconLimit || FALCON_LIMIT;
-                const falconBurst = diff.falconBurst || 1;
+                const flockInterval = diff.flockInterval ?? diff.gooseInterval ?? diff.falconInterval ?? BASE_GOOSE_INTERVAL;
+                const flockLimit = diff.flockLimit ?? diff.gooseLimit ?? diff.falconLimit ?? GEESE_FLOCK_LIMIT;
+                const flockBurst = diff.flockBurst ?? diff.gooseBurst ?? diff.falconBurst ?? 1;
                 const jetSpawnInterval = diff.jetSpawnInterval || JET_SPAWN_INTERVAL;
                 const fighterJetLimit = diff.fighterJetLimit || FIGHTER_JET_LIMIT;
                 const jetActivationDelay = (diff.jetActivationDelay !== undefined) ? diff.jetActivationDelay : null;
@@ -2034,24 +2003,67 @@
                     }
                 }
                 
-                // Spawn falcons that swoop toward the plane
-                if (time - lastFalcon > falconInterval && falcons.length < falconLimit) {
-                    const availableSlots = Math.max(0, falconLimit - falcons.length);
-                    const spawnCount = Math.min(falconBurst, availableSlots);
+                // Spawn migrating goose flocks that drift across the sky
+                if (time - lastGooseFlock > flockInterval && gooseFlocks.length < flockLimit) {
+                    const availableSlots = Math.max(0, flockLimit - gooseFlocks.length);
+                    const spawnCount = Math.min(flockBurst, availableSlots);
                     for (let i = 0; i < spawnCount; i++) {
-                        const palette = FALCON_VARIANTS[Math.floor(Math.random() * FALCON_VARIANTS.length)];
-                        falcons.push({
+                        const palette = GOOSE_VARIANTS[Math.floor(Math.random() * GOOSE_VARIANTS.length)];
+                        const flockScale = 0.85 + Math.random() * 0.3;
+                        const spacingX = randomInRange(32, 46);
+                        const spacingY = randomInRange(18, 26);
+                        const gooseCount = 5 + Math.floor(Math.random() * 3);
+                        const geese = [{
+                            xOffset: 0,
+                            yOffset: 0,
+                            bob: randomInRange(1.4, 2.4),
+                            phase: Math.random() * Math.PI * 2,
+                            scale: 1
+                        }];
+                        let remaining = gooseCount - 1;
+                        let level = 1;
+                        while (remaining > 0) {
+                            const baseYOffset = level * spacingY + randomInRange(-4, 4);
+                            const basePhase = Math.random() * Math.PI * 2;
+                            if (remaining > 0) {
+                                geese.push({
+                                    xOffset: -level * spacingX,
+                                    yOffset: baseYOffset,
+                                    bob: randomInRange(0.9, 1.8),
+                                    phase: basePhase,
+                                    scale: 0.85 + Math.random() * 0.15
+                                });
+                                remaining--;
+                            }
+                            if (remaining > 0) {
+                                geese.push({
+                                    xOffset: level * spacingX,
+                                    yOffset: baseYOffset + randomInRange(-3, 3),
+                                    bob: randomInRange(0.9, 1.8),
+                                    phase: basePhase + randomInRange(0.15, 0.35),
+                                    scale: 0.85 + Math.random() * 0.15
+                                });
+                                remaining--;
+                            }
+                            level++;
+                        }
+                        const formationDepth = Math.max(1, Math.ceil(gooseCount / 2));
+                        gooseFlocks.push({
                             x: canvas.width + 80 + i * 40,
                             y: Math.random() * (canvas.height - 140) + 70,
-                            speed: speed + 2 + Math.random() * 1.5,
+                            speed: speed + 1.4 + Math.random() * 1.2,
                             flapOffset: Math.random() * Math.PI * 2,
-                            scale: 0.9 + Math.random() * 0.35,
-                            glideTilt: randomInRange(-0.08, 0.08),
-                            wingSpan: 110 + Math.random() * 25,
-                            palette
+                            scale: flockScale,
+                            glideTilt: randomInRange(-0.05, 0.05),
+                            driftPhase: Math.random() * Math.PI * 2,
+                            wobble: randomInRange(0.7, 1.5),
+                            ribbonAlpha: randomInRange(0.08, 0.16),
+                            palette,
+                            geese,
+                            collisionRadius: 55 + formationDepth * 6
                         });
                     }
-                    lastFalcon = time;
+                    lastGooseFlock = time;
                 }
                 
                 // Spawn fighter jets from behind once activated
@@ -2129,20 +2141,22 @@
                     }
                 }
                 
-                // Update falcons and handle collisions
-                for (let i = falcons.length - 1; i >= 0; i--) {
-                    const p = falcons[i];
-                    p.x -= p.speed;
-                    p.y += Math.sin((time / 300) + p.flapOffset) * 1.5;
-                    if (p.x < -150) {
-                        falcons.splice(i, 1);
+                // Update goose flocks and handle collisions
+                for (let i = gooseFlocks.length - 1; i >= 0; i--) {
+                    const flock = gooseFlocks[i];
+                    flock.x -= flock.speed;
+                    flock.y += Math.sin((time / 420) + flock.driftPhase) * (flock.wobble || 1);
+                    flock.glideTilt = Math.sin((time / 820) + flock.driftPhase) * 0.12;
+                    if (flock.x < -200) {
+                        gooseFlocks.splice(i, 1);
                         continue;
                     }
-                    let dx = plane.x - p.x;
-                    let dy = plane.y - p.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < 45) {
-                        applyCoinDamage({ all: true, color: '#ffa502', label: 'All!' }, time);
-                        falcons.splice(i, 1);
+                    const dx = plane.x - flock.x;
+                    const dy = plane.y - flock.y;
+                    const radius = flock.collisionRadius || 60;
+                    if (Math.sqrt(dx * dx + dy * dy) < radius) {
+                        applyCoinDamage({ all: true, color: '#adc178', label: 'All!' }, time);
+                        gooseFlocks.splice(i, 1);
                     }
                 }
                 
@@ -2317,11 +2331,11 @@
                 
                 drawComboRoute(ctx, time);
                 
-                // Draw falcons with stylized silhouettes
-                for (let p of falcons) {
+                // Draw migrating goose flocks
+                for (let flock of gooseFlocks) {
                     ctx.save();
-                    ctx.translate(p.x, p.y);
-                    drawFalconSprite(ctx, p, time);
+                    ctx.translate(flock.x, flock.y);
+                    drawGooseFlockSprite(ctx, flock, time);
                     ctx.restore();
                 }
                 
