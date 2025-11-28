@@ -1584,6 +1584,162 @@
             ctx.closePath();
             ctx.fill();
         }
+        
+        function drawPterodactylSprite(ctx, pterodactyl, time) {
+            const palette = pterodactyl.palette || PTERODACTYL_VARIANTS[0];
+            const scale = (pterodactyl.scale || 1) * 1.18;
+            const span = pterodactyl.wingSpan || 130;
+            const wingBeat = Math.sin((time / 260) + (pterodactyl.flapOffset || 0));
+            const membraneDip = 34 + Math.abs(wingBeat) * 18;
+            const shoulder = 26;
+            
+            ctx.scale(scale, scale);
+            ctx.rotate((pterodactyl.glideTilt || 0) + wingBeat * 0.04);
+            
+            const drawWing = (flip = 1) => {
+                ctx.save();
+                ctx.scale(1, flip);
+                const wingGradient = ctx.createLinearGradient(8, -shoulder, -span, -membraneDip * 0.25);
+                wingGradient.addColorStop(0, palette.wing);
+                wingGradient.addColorStop(1, palette.detail);
+                ctx.fillStyle = wingGradient;
+                ctx.beginPath();
+                ctx.moveTo(10, -shoulder);
+                ctx.quadraticCurveTo(-span * 0.18, -membraneDip - 16, -span * 0.55, -membraneDip);
+                ctx.quadraticCurveTo(-span * 0.98, -membraneDip * 0.18, -span * 0.8, 6);
+                ctx.quadraticCurveTo(-span * 0.38, membraneDip * 0.38, 8, shoulder);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.globalAlpha = 0.4;
+                ctx.fillStyle = palette.belly;
+                ctx.beginPath();
+                ctx.moveTo(-span * 0.2, -wingBeat * 3);
+                ctx.quadraticCurveTo(-span * 0.45, -membraneDip * 0.25, -span * 0.65, 0);
+                ctx.quadraticCurveTo(-span * 0.38, membraneDip * 0.22, -span * 0.12, shoulder * 0.18);
+                ctx.closePath();
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                
+                ctx.strokeStyle = palette.detail;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(6, -shoulder);
+                ctx.quadraticCurveTo(-span * 0.5, -membraneDip * 0.55, -span * 0.78, -2);
+                ctx.moveTo(-span * 0.48, -membraneDip * 0.3);
+                ctx.lineTo(-span * 0.66, membraneDip * 0.12);
+                ctx.stroke();
+                
+                ctx.fillStyle = palette.detail;
+                ctx.beginPath();
+                ctx.moveTo(-span * 0.72, -4);
+                ctx.lineTo(-span * 0.82, 4);
+                ctx.lineTo(-span * 0.62, 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            };
+            
+            drawWing(1);
+            drawWing(-1);
+            
+            const tailGradient = ctx.createLinearGradient(-70, -10, -18, 10);
+            tailGradient.addColorStop(0, palette.detail);
+            tailGradient.addColorStop(1, palette.body);
+            ctx.fillStyle = tailGradient;
+            ctx.beginPath();
+            ctx.moveTo(-34, -4);
+            ctx.quadraticCurveTo(-70, -26, -94, -6);
+            ctx.quadraticCurveTo(-70, 12, -34, 6);
+            ctx.closePath();
+            ctx.fill();
+            
+            const bodyGradient = ctx.createLinearGradient(-46, -18, 34, 16);
+            bodyGradient.addColorStop(0, palette.detail);
+            bodyGradient.addColorStop(0.4, palette.body);
+            bodyGradient.addColorStop(1, palette.belly);
+            ctx.fillStyle = bodyGradient;
+            ctx.beginPath();
+            ctx.moveTo(34, -6);
+            ctx.quadraticCurveTo(6, -26, -22, -18);
+            ctx.quadraticCurveTo(-36, -10, -36, 0);
+            ctx.quadraticCurveTo(-36, 10, -22, 18);
+            ctx.quadraticCurveTo(8, 16, 36, 4);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillStyle = palette.belly;
+            ctx.beginPath();
+            ctx.moveTo(12, -6);
+            ctx.quadraticCurveTo(-8, -4, -18, -2);
+            ctx.quadraticCurveTo(-6, 8, 12, 8);
+            ctx.quadraticCurveTo(20, 2, 12, -6);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillStyle = palette.body;
+            ctx.beginPath();
+            ctx.moveTo(32, -4);
+            ctx.quadraticCurveTo(40, -20, 54, -10);
+            ctx.quadraticCurveTo(46, 6, 30, 10);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillStyle = palette.crest;
+            ctx.beginPath();
+            ctx.moveTo(16, -12);
+            ctx.lineTo(8, -34);
+            ctx.lineTo(2, -10);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillStyle = palette.beak;
+            ctx.beginPath();
+            ctx.moveTo(34, -2);
+            ctx.lineTo(70, -6);
+            ctx.lineTo(62, 0);
+            ctx.lineTo(70, 6);
+            ctx.lineTo(34, 2);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.strokeStyle = palette.detail;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(40, -2);
+            ctx.lineTo(62, -1);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(22, -6, 3.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = palette.detail;
+            ctx.beginPath();
+            ctx.arc(23, -6, 1.6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = palette.detail;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-6, 6);
+            ctx.lineTo(-16, 18);
+            ctx.lineTo(-12, 22);
+            ctx.moveTo(-2, 8);
+            ctx.lineTo(-12, 22);
+            ctx.lineTo(-8, 26);
+            ctx.stroke();
+            
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(36, 2);
+            ctx.quadraticCurveTo(12, 16, -18, 18);
+            ctx.quadraticCurveTo(-34, 8, -36, 0);
+            ctx.quadraticCurveTo(-34, -10, -18, -18);
+            ctx.quadraticCurveTo(10, -20, 34, -6);
+            ctx.stroke();
+        }
 
         function startJetEscape(jet, time) {
             if (jet.evading) return;
@@ -2160,148 +2316,11 @@
                 
                 drawComboRoute(ctx, time);
                 
-                // Draw pterodactyls with richer detail
+                // Draw pterodactyls with stylized silhouettes
                 for (let p of pterodactyls) {
                     ctx.save();
                     ctx.translate(p.x, p.y);
-                    const palette = p.palette || PTERODACTYL_VARIANTS[0];
-                    const scale = (p.scale || 1) * 1.15;
-                    const span = p.wingSpan || 120;
-                    const wingFlap = Math.sin((time / 260) + p.flapOffset);
-                    ctx.scale(scale, scale);
-                    ctx.rotate((p.glideTilt || 0) + wingFlap * 0.04);
-                    
-                    const drawWing = (flip = 1) => {
-                        ctx.save();
-                        ctx.scale(1, flip);
-                        const lift = 30 + wingFlap * 18;
-                        const membraneDip = 18 + Math.abs(wingFlap) * 10;
-                        ctx.fillStyle = palette.wing;
-                        ctx.beginPath();
-                        ctx.moveTo(-5, -3);
-                        ctx.quadraticCurveTo(-span * 0.35, -lift, -span, -membraneDip);
-                        ctx.quadraticCurveTo(-span * 0.4, -6, -6, 4);
-                        ctx.closePath();
-                        ctx.fill();
-                        
-                        ctx.globalAlpha = 0.35;
-                        ctx.fillStyle = palette.belly;
-                        ctx.beginPath();
-                        ctx.moveTo(-8, -1);
-                        ctx.quadraticCurveTo(-span * 0.25, -lift * 0.5, -span * 0.62, -membraneDip * 0.3);
-                        ctx.quadraticCurveTo(-span * 0.3, -2, -6, 2);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.globalAlpha = 1;
-                        
-                        ctx.strokeStyle = palette.detail;
-                        ctx.lineWidth = 1.5;
-                        ctx.beginPath();
-                        ctx.moveTo(-5, -2);
-                        ctx.quadraticCurveTo(-span * 0.45, -lift * 0.6, -span + 8, -membraneDip * 0.45);
-                        ctx.stroke();
-                        ctx.restore();
-                    };
-                    
-                    drawWing(1);
-                    drawWing(-1);
-                    
-                    // Tail
-                    const tailGradient = ctx.createLinearGradient(-60, -8, -15, 8);
-                    tailGradient.addColorStop(0, palette.detail);
-                    tailGradient.addColorStop(1, palette.body);
-                    ctx.fillStyle = tailGradient;
-                    ctx.beginPath();
-                    ctx.moveTo(-50, -4);
-                    ctx.quadraticCurveTo(-70, -18, -90, -6);
-                    ctx.lineTo(-35, 4);
-                    ctx.quadraticCurveTo(-70, 18, -95, 6);
-                    ctx.closePath();
-                    ctx.fill();
-                    
-                    // Body
-                    const bodyGradient = ctx.createLinearGradient(-40, -18, 32, 12);
-                    bodyGradient.addColorStop(0, palette.detail);
-                    bodyGradient.addColorStop(0.45, palette.body);
-                    bodyGradient.addColorStop(1, '#f7d1a3');
-                    ctx.fillStyle = bodyGradient;
-                    ctx.beginPath();
-                    ctx.moveTo(32, -6);
-                    ctx.quadraticCurveTo(12, -20, -8, -18);
-                    ctx.quadraticCurveTo(-26, -8, -34, 0);
-                    ctx.quadraticCurveTo(-26, 8, -8, 16);
-                    ctx.quadraticCurveTo(10, 12, 34, 2);
-                    ctx.closePath();
-                    ctx.fill();
-                    
-                    // Belly highlight
-                    ctx.fillStyle = palette.belly;
-                    ctx.beginPath();
-                    ctx.moveTo(12, -6);
-                    ctx.quadraticCurveTo(-4, -4, -18, -1);
-                    ctx.quadraticCurveTo(-6, 6, 10, 6);
-                    ctx.quadraticCurveTo(18, 2, 12, -6);
-                    ctx.fill();
-                    
-                    // Neck and head
-                    ctx.fillStyle = palette.body;
-                    ctx.beginPath();
-                    ctx.moveTo(32, -6);
-                    ctx.quadraticCurveTo(38, -16, 48, -10);
-                    ctx.quadraticCurveTo(42, 0, 34, 4);
-                    ctx.closePath();
-                    ctx.fill();
-                    
-                    // Crest
-                    ctx.fillStyle = palette.crest;
-                    ctx.beginPath();
-                    ctx.moveTo(18, -10);
-                    ctx.lineTo(12, -30);
-                    ctx.lineTo(4, -8);
-                    ctx.closePath();
-                    ctx.fill();
-                    
-                    // Beak
-                    ctx.fillStyle = palette.beak;
-                    ctx.beginPath();
-                    ctx.moveTo(34, -4);
-                    ctx.lineTo(54, 0);
-                    ctx.lineTo(34, 4);
-                    ctx.quadraticCurveTo(44, 0, 34, -4);
-                    ctx.fill();
-                    
-                    // Eye
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(20, -6, 3.5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = palette.detail;
-                    ctx.beginPath();
-                    ctx.arc(21, -6, 1.5, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Legs and claws
-                    ctx.strokeStyle = palette.detail;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(-8, 6);
-                    ctx.lineTo(-20, 16);
-                    ctx.lineTo(-14, 20);
-                    ctx.moveTo(-6, 8);
-                    ctx.lineTo(-16, 22);
-                    ctx.lineTo(-10, 24);
-                    ctx.stroke();
-                    
-                    // Outline
-                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    ctx.moveTo(34, 2);
-                    ctx.quadraticCurveTo(10, 12, -8, 16);
-                    ctx.quadraticCurveTo(-26, 8, -34, 0);
-                    ctx.quadraticCurveTo(-26, -8, -8, -18);
-                    ctx.quadraticCurveTo(12, -20, 32, -6);
-                    ctx.stroke();
+                    drawPterodactylSprite(ctx, p, time);
                     ctx.restore();
                 }
                 
