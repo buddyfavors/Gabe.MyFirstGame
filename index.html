@@ -916,9 +916,9 @@
                 cloudSize: 2.6,          // Humongous clouds
                 spawnRate: 900,          // Very frequent spawns
                 cloudCount: 3,           // Clouds arrive in waves
-                pterodactylLimit: 8,     // Way more airborne threats
-                pterodactylInterval: 1700,
-                pterodactylBurst: 2,
+                falconLimit: 8,          // Way more airborne threats
+                falconInterval: 1700,
+                falconBurst: 2,
                 fighterJetLimit: 4,
                 jetSpawnInterval: 2400,
                 jetActivationDelay: 3500
@@ -1128,7 +1128,7 @@
         let stars = [];
         let bigCoins = [];
         let powerups = [];
-        let pterodactyls = [];
+        let falcons = [];
         let fighterJets = [];
         let missiles = [];
         
@@ -1136,30 +1136,31 @@
         const BIG_COIN_BASE_RADIUS = 26;
         const SMALL_COIN_PICKUP_PADDING = 14;
         const BIG_COIN_PICKUP_PADDING = 16;
-        const PTERODACTYL_VARIANTS = [
+        // Chromatic options for the new peregrine-inspired falcons
+        const FALCON_VARIANTS = [
             {
-                body: '#c97c47',
-                wing: '#8e4b32',
-                belly: '#f5cf9d',
-                crest: '#d8572a',
-                beak: '#f5b041',
-                detail: '#4a2f23'
+                body: '#5c7dc3',
+                wing: '#2c3d68',
+                belly: '#f5eddc',
+                crest: '#dbe6ff',
+                beak: '#f7c144',
+                detail: '#1a2238'
             },
             {
-                body: '#b36b3c',
-                wing: '#723826',
-                belly: '#f0c49e',
-                crest: '#e85d75',
-                beak: '#f4a259',
-                detail: '#3e1f1a'
+                body: '#f06c3b',
+                wing: '#922c1d',
+                belly: '#ffdcb6',
+                crest: '#f4a259',
+                beak: '#ffe066',
+                detail: '#4b1f14'
             },
             {
-                body: '#a56a43',
-                wing: '#7b4a28',
-                belly: '#f4dab2',
-                crest: '#f77f00',
-                beak: '#ffbe5b',
-                detail: '#41281a'
+                body: '#3da5a5',
+                wing: '#20585a',
+                belly: '#e9fff9',
+                crest: '#b2f5ea',
+                beak: '#ffe066',
+                detail: '#123436'
             }
         ];
         
@@ -1169,14 +1170,14 @@
         let jetsActive = false;
         updateCoinDisplay();
         
-        let lastPterodactyl = 0;
+        let lastFalcon = 0;
         let lastFighterJet = 0;
         let lastBigCoin = 0;
         let lastPowerup = 0;
         let jetActivationStart = 0;
-        const PTERODACTYL_LIMIT = 2;
+        const FALCON_LIMIT = 2;
         const FIGHTER_JET_LIMIT = 2;
-        const BASE_PTERODACTYL_INTERVAL = 5000;
+        const BASE_FALCON_INTERVAL = 5000;
         
         function updateScoreDisplay() {
             document.getElementById('score').textContent = score;
@@ -1585,170 +1586,159 @@
             ctx.fill();
         }
         
-        function drawPterodactylSprite(ctx, pterodactyl, time) {
-            const palette = pterodactyl.palette || PTERODACTYL_VARIANTS[0];
-            const scale = (pterodactyl.scale || 1) * 1.12;
-            const span = pterodactyl.wingSpan || 140;
-            const wingBeat = Math.sin((time / 220) + (pterodactyl.flapOffset || 0));
-            const tilt = (pterodactyl.glideTilt || 0) + wingBeat * 0.05;
-            const shoulder = 24;
-            const innerWing = span * 0.36;
-            const outerWing = span * 0.64;
-            const bodyLength = 80;
+        // Stylized falcon with broad wings and a masked head
+        function drawFalconSprite(ctx, falcon, time) {
+            const palette = falcon.palette || FALCON_VARIANTS[0];
+            const scale = (falcon.scale || 1) * 1.05;
+            const span = falcon.wingSpan || 120;
+            const wingBeat = Math.sin((time / 180) + (falcon.flapOffset || 0));
+            const bank = (falcon.glideTilt || 0) + wingBeat * 0.04;
+            const shoulder = 16;
+            const wingTip = span * 0.7;
+            const bodyLength = 72;
             
             ctx.scale(scale, scale);
-            ctx.rotate(tilt);
+            ctx.rotate(bank);
             
-            const drawFeatheredWing = (flip = 1) => {
+            const drawWing = (flip = 1) => {
                 ctx.save();
                 ctx.scale(1, flip);
                 
-                const wingGradient = ctx.createLinearGradient(8, -shoulder, -span, span * 0.12);
+                const wingGradient = ctx.createLinearGradient(0, -shoulder, -wingTip, shoulder * 2);
                 wingGradient.addColorStop(0, palette.wing);
-                wingGradient.addColorStop(0.4, palette.body);
+                wingGradient.addColorStop(0.7, palette.body);
                 wingGradient.addColorStop(1, palette.detail);
                 ctx.fillStyle = wingGradient;
                 
                 ctx.beginPath();
-                ctx.moveTo(12, -shoulder);
-                ctx.quadraticCurveTo(-innerWing * 0.1, -42 - wingBeat * 8, -innerWing, -30);
-                ctx.quadraticCurveTo(-outerWing, -74 - wingBeat * 22, -span, -6);
-                ctx.quadraticCurveTo(-outerWing, 62 + wingBeat * 20, -innerWing * 0.78, 22);
-                ctx.quadraticCurveTo(-innerWing * 0.2, 14 + wingBeat * 6, 12, shoulder);
+                ctx.moveTo(8, -shoulder);
+                ctx.quadraticCurveTo(-span * 0.15, -36 - wingBeat * 6, -span * 0.35, -18);
+                ctx.quadraticCurveTo(-wingTip, -20 - wingBeat * 24, -wingTip, 0);
+                ctx.quadraticCurveTo(-wingTip, 32 + wingBeat * 12, -span * 0.4, 18);
+                ctx.quadraticCurveTo(-span * 0.18, 8 + wingBeat * 8, 6, shoulder);
                 ctx.closePath();
                 ctx.fill();
-                
-                ctx.globalAlpha = 0.55;
-                ctx.fillStyle = palette.belly;
-                ctx.beginPath();
-                ctx.moveTo(-innerWing * 0.2, -8);
-                ctx.quadraticCurveTo(-outerWing * 0.55, -28, -outerWing * 0.7, -2);
-                ctx.quadraticCurveTo(-outerWing * 0.45, 18, -innerWing * 0.15, 8);
-                ctx.closePath();
-                ctx.fill();
-                ctx.globalAlpha = 1;
                 
                 ctx.strokeStyle = palette.detail;
-                ctx.lineWidth = 1.2;
+                ctx.lineWidth = 1.1;
                 ctx.beginPath();
-                ctx.moveTo(-innerWing * 0.25, -18);
-                ctx.lineTo(-outerWing * 0.78, -4);
-                ctx.moveTo(-innerWing * 0.35, 2);
-                ctx.lineTo(-outerWing * 0.82, 26);
+                ctx.moveTo(-span * 0.28, -8);
+                ctx.lineTo(-wingTip * 0.82, -2);
+                ctx.moveTo(-span * 0.3, 4);
+                ctx.lineTo(-wingTip * 0.76, 18);
                 ctx.stroke();
                 
                 ctx.fillStyle = palette.detail;
-                for (let i = 0; i < 4; i++) {
-                    const featherOffset = (-outerWing * 0.9) + i * (outerWing * 0.18);
+                for (let i = 0; i < 3; i++) {
+                    const offset = (-wingTip * 0.9) + i * (wingTip * 0.22);
                     ctx.beginPath();
-                    ctx.moveTo(featherOffset - 2, -4);
-                    ctx.quadraticCurveTo(featherOffset - 8, 10, featherOffset + 10, 22);
-                    ctx.quadraticCurveTo(featherOffset + 2, 6, featherOffset - 2, -4);
-                    ctx.closePath();
+                    ctx.moveTo(offset, -2);
+                    ctx.quadraticCurveTo(offset - 10, 12, offset + 14, 28);
+                    ctx.quadraticCurveTo(offset + 2, 12, offset, -2);
                     ctx.fill();
                 }
                 ctx.restore();
             };
             
-            drawFeatheredWing(1);
-            drawFeatheredWing(-1);
+            drawWing(1);
+            drawWing(-1);
             
             ctx.save();
-            ctx.rotate(-0.18 + wingBeat * 0.08);
-            const tailGradient = ctx.createLinearGradient(-bodyLength, 0, -20, 0);
+            ctx.rotate(-0.25 + wingBeat * 0.05);
+            const tailGradient = ctx.createLinearGradient(-bodyLength, 0, -18, 0);
             tailGradient.addColorStop(0, palette.detail);
             tailGradient.addColorStop(1, palette.belly);
             ctx.fillStyle = tailGradient;
             ctx.beginPath();
-            ctx.moveTo(-32, -4);
+            ctx.moveTo(-20, -4);
             ctx.lineTo(-bodyLength, -18);
-            ctx.quadraticCurveTo(-bodyLength - 12, 0, -bodyLength, 20);
-            ctx.lineTo(-32, 8);
+            ctx.lineTo(-bodyLength - 8, 0);
+            ctx.lineTo(-bodyLength, 18);
+            ctx.lineTo(-20, 6);
             ctx.closePath();
             ctx.fill();
             
-            ctx.fillStyle = palette.detail;
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(-bodyLength, -10);
-            ctx.lineTo(-bodyLength - 12, 0);
-            ctx.lineTo(-bodyLength, 10);
-            ctx.closePath();
-            ctx.fill();
+            ctx.moveTo(-bodyLength + 8, -10);
+            ctx.lineTo(-bodyLength - 2, 0);
+            ctx.lineTo(-bodyLength + 8, 10);
+            ctx.stroke();
             ctx.restore();
             
-            const bodyGradient = ctx.createLinearGradient(-46, -18, 42, 20);
+            const bodyGradient = ctx.createLinearGradient(-40, -18, 32, 22);
             bodyGradient.addColorStop(0, palette.detail);
-            bodyGradient.addColorStop(0.45, palette.body);
+            bodyGradient.addColorStop(0.55, palette.body);
             bodyGradient.addColorStop(1, palette.belly);
             ctx.fillStyle = bodyGradient;
             ctx.beginPath();
-            ctx.moveTo(28, -10);
-            ctx.quadraticCurveTo(4, -34, -28, -18);
-            ctx.quadraticCurveTo(-46, -8, -46, 0);
-            ctx.quadraticCurveTo(-46, 8, -28, 18);
-            ctx.quadraticCurveTo(6, 28, 28, 6);
+            ctx.moveTo(26, -8);
+            ctx.quadraticCurveTo(6, -30, -24, -18);
+            ctx.quadraticCurveTo(-40, -8, -40, 0);
+            ctx.quadraticCurveTo(-40, 10, -24, 18);
+            ctx.quadraticCurveTo(4, 32, 26, 8);
             ctx.closePath();
             ctx.fill();
             
             ctx.fillStyle = palette.belly;
             ctx.beginPath();
-            ctx.moveTo(6, -6);
-            ctx.quadraticCurveTo(-12, -8, -20, -2);
-            ctx.quadraticCurveTo(-10, 10, 8, 14);
-            ctx.quadraticCurveTo(18, 6, 6, -6);
+            ctx.moveTo(4, -4);
+            ctx.quadraticCurveTo(-14, -6, -18, -2);
+            ctx.quadraticCurveTo(-12, 12, 6, 16);
+            ctx.quadraticCurveTo(16, 8, 4, -4);
+            ctx.fill();
+            
+            ctx.fillStyle = palette.detail;
+            ctx.beginPath();
+            ctx.moveTo(-4, 10);
+            ctx.lineTo(-10, 24);
+            ctx.lineTo(0, 20);
+            ctx.lineTo(6, 30);
+            ctx.lineTo(10, 18);
             ctx.closePath();
             ctx.fill();
             
             ctx.fillStyle = palette.body;
             ctx.beginPath();
-            ctx.moveTo(24, -4);
-            ctx.quadraticCurveTo(38, -18, 52, -8);
-            ctx.quadraticCurveTo(42, 10, 22, 14);
+            ctx.moveTo(22, -2);
+            ctx.quadraticCurveTo(36, -16, 46, -6);
+            ctx.quadraticCurveTo(34, 10, 18, 12);
             ctx.closePath();
             ctx.fill();
             
             ctx.fillStyle = palette.crest;
             ctx.beginPath();
-            ctx.moveTo(8, -14);
-            ctx.lineTo(0, -32);
-            ctx.lineTo(-4, -10);
+            ctx.moveTo(6, -12);
+            ctx.lineTo(-2, -28);
+            ctx.lineTo(-6, -8);
             ctx.closePath();
             ctx.fill();
             
             ctx.fillStyle = palette.beak;
             ctx.beginPath();
-            ctx.moveTo(30, -2);
-            ctx.lineTo(60, -6);
-            ctx.lineTo(72, 0);
-            ctx.lineTo(60, 6);
-            ctx.lineTo(30, 2);
+            ctx.moveTo(24, -2);
+            ctx.lineTo(50, -6);
+            ctx.lineTo(58, 0);
+            ctx.lineTo(50, 6);
+            ctx.lineTo(24, 2);
             ctx.closePath();
             ctx.fill();
             
             ctx.strokeStyle = palette.detail;
-            ctx.lineWidth = 1.2;
+            ctx.lineWidth = 1.1;
             ctx.beginPath();
-            ctx.moveTo(34, -2);
-            ctx.lineTo(60, -1);
+            ctx.moveTo(28, -1);
+            ctx.lineTo(48, -1);
             ctx.stroke();
-            
-            ctx.fillStyle = palette.detail;
-            ctx.beginPath();
-            ctx.moveTo(-6, 8);
-            ctx.lineTo(-18, 24);
-            ctx.lineTo(-8, 20);
-            ctx.lineTo(0, 28);
-            ctx.lineTo(6, 16);
-            ctx.closePath();
-            ctx.fill();
             
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
-            ctx.arc(18, -6, 3.2, 0, Math.PI * 2);
+            ctx.arc(12, -6, 3, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = palette.detail;
             ctx.beginPath();
-            ctx.arc(19, -6, 1.5, 0, Math.PI * 2);
+            ctx.arc(13, -6, 1.4, 0, Math.PI * 2);
             ctx.fill();
         }
 
@@ -1806,7 +1796,7 @@
             jetsActive = false;
             missiles = [];
             fighterJets = [];
-            pterodactyls = [];
+            falcons = [];
             clouds = [];
             stars = [];
             bigCoins = [];
@@ -1898,7 +1888,7 @@
             stars = [];
             bigCoins = [];
             powerups = [];
-            pterodactyls = [];
+            falcons = [];
             fighterJets = [];
             missiles = [];
             coinsCollected = 0;
@@ -1913,7 +1903,7 @@
                 coinGainTag.textContent = '';
                 coinGainTag.classList.remove('visible', 'loss');
             }
-            lastPterodactyl = now;
+            lastFalcon = now;
             lastFighterJet = now;
             lastBigCoin = now;
             lastPowerup = now;
@@ -1963,9 +1953,9 @@
                 
                 // Spawn clouds based on difficulty
                 const diff = difficulties[selectedDifficulty];
-                const pterodactylInterval = diff.pterodactylInterval || BASE_PTERODACTYL_INTERVAL;
-                const pterodactylLimit = diff.pterodactylLimit || PTERODACTYL_LIMIT;
-                const pterodactylBurst = diff.pterodactylBurst || 1;
+                const falconInterval = diff.falconInterval || BASE_FALCON_INTERVAL;
+                const falconLimit = diff.falconLimit || FALCON_LIMIT;
+                const falconBurst = diff.falconBurst || 1;
                 const jetSpawnInterval = diff.jetSpawnInterval || JET_SPAWN_INTERVAL;
                 const fighterJetLimit = diff.fighterJetLimit || FIGHTER_JET_LIMIT;
                 const jetActivationDelay = (diff.jetActivationDelay !== undefined) ? diff.jetActivationDelay : null;
@@ -2044,13 +2034,13 @@
                     }
                 }
                 
-                // Spawn pterodactyls that fly toward the plane
-                if (time - lastPterodactyl > pterodactylInterval && pterodactyls.length < pterodactylLimit) {
-                    const availableSlots = Math.max(0, pterodactylLimit - pterodactyls.length);
-                    const spawnCount = Math.min(pterodactylBurst, availableSlots);
+                // Spawn falcons that swoop toward the plane
+                if (time - lastFalcon > falconInterval && falcons.length < falconLimit) {
+                    const availableSlots = Math.max(0, falconLimit - falcons.length);
+                    const spawnCount = Math.min(falconBurst, availableSlots);
                     for (let i = 0; i < spawnCount; i++) {
-                        const palette = PTERODACTYL_VARIANTS[Math.floor(Math.random() * PTERODACTYL_VARIANTS.length)];
-                        pterodactyls.push({
+                        const palette = FALCON_VARIANTS[Math.floor(Math.random() * FALCON_VARIANTS.length)];
+                        falcons.push({
                             x: canvas.width + 80 + i * 40,
                             y: Math.random() * (canvas.height - 140) + 70,
                             speed: speed + 2 + Math.random() * 1.5,
@@ -2061,7 +2051,7 @@
                             palette
                         });
                     }
-                    lastPterodactyl = time;
+                    lastFalcon = time;
                 }
                 
                 // Spawn fighter jets from behind once activated
@@ -2139,20 +2129,20 @@
                     }
                 }
                 
-                // Update pterodactyls and handle collisions
-                for (let i = pterodactyls.length - 1; i >= 0; i--) {
-                    const p = pterodactyls[i];
+                // Update falcons and handle collisions
+                for (let i = falcons.length - 1; i >= 0; i--) {
+                    const p = falcons[i];
                     p.x -= p.speed;
                     p.y += Math.sin((time / 300) + p.flapOffset) * 1.5;
                     if (p.x < -150) {
-                        pterodactyls.splice(i, 1);
+                        falcons.splice(i, 1);
                         continue;
                     }
                     let dx = plane.x - p.x;
                     let dy = plane.y - p.y;
                     if (Math.sqrt(dx*dx + dy*dy) < 45) {
                         applyCoinDamage({ all: true, color: '#ffa502', label: 'All!' }, time);
-                        pterodactyls.splice(i, 1);
+                        falcons.splice(i, 1);
                     }
                 }
                 
@@ -2327,11 +2317,11 @@
                 
                 drawComboRoute(ctx, time);
                 
-                // Draw pterodactyls with stylized silhouettes
-                for (let p of pterodactyls) {
+                // Draw falcons with stylized silhouettes
+                for (let p of falcons) {
                     ctx.save();
                     ctx.translate(p.x, p.y);
-                    drawPterodactylSprite(ctx, p, time);
+                    drawFalconSprite(ctx, p, time);
                     ctx.restore();
                 }
                 
