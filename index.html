@@ -218,7 +218,6 @@
             canvas.height = window.innerHeight;
         }
         resize();
-        window.addEventListener('resize', resize);
 
         // Difficulty settings
         const difficulties = [
@@ -359,8 +358,27 @@
         let score = 0;
         let speed = 3;
         
+        const PLANE_X_RATIO = 0.38;
+        const DAMAGE_EFFECT_DURATION = 600;
+        
         // Player plane
-        let plane = { x: 120, y: 300, vy: 0 };
+        let plane = { x: canvas.width * PLANE_X_RATIO, y: canvas.height / 2, vy: 0 };
+        let damageBursts = [];
+        let screenFlashAlpha = 0;
+        
+        function resetPlanePosition() {
+            plane.x = canvas.width * PLANE_X_RATIO;
+            plane.y = canvas.height / 2;
+            plane.vy = 0;
+        }
+        resetPlanePosition();
+        
+        window.addEventListener('resize', function() {
+            resize();
+            if (!playing) {
+                resetPlanePosition();
+            }
+        });
         
         // Objects
         let clouds = [];
@@ -381,6 +399,28 @@
         
         function updateScoreDisplay() {
             document.getElementById('score').textContent = score;
+        }
+        
+        function triggerDamageEffect(effect, time) {
+            damageBursts.push({
+                x: effect.x,
+                y: effect.y,
+                color: effect.color,
+                label: effect.label,
+                start: time
+            });
+            screenFlashAlpha = 0.45;
+        }
+        
+        function applyCoinDamage(options, time) {
+            const { amount = 0, all = false, color = '#ff6b6b', label } = options || {};
+            const before = coinsCollected;
+            coinsCollected = all ? 0 : Math.max(0, coinsCollected - amount);
+            score = coinsCollected * 10 * currentMultiplier;
+            updateScoreDisplay();
+            const lost = Math.max(before - coinsCollected, 0);
+            const displayLabel = label || (all ? 'All!' : `-${lost || amount}`);
+            triggerDamageEffect({ x: plane.x, y: plane.y, color, label: displayLabel }, time);
         }
         
         // Controls
@@ -435,7 +475,7 @@
             playing = true;
             score = 0;
             speed = 3;
-            plane = { x: 120, y: canvas.height / 2, vy: 0 };
+            resetPlanePosition();
             clouds = [];
             stars = [];
             pterodactyls = [];
@@ -562,12 +602,7 @@
                     let dx = plane.x - p.x;
                     let dy = plane.y - p.y;
                     if (Math.sqrt(dx*dx + dy*dy) < 45) {
-                        const stolen = Math.min(coinsCollected, 3);
-                        if (stolen > 0) {
-                            coinsCollected -= stolen;
-                            score = coinsCollected * 10 * currentMultiplier;
-                            updateScoreDisplay();
-                        }
+                        applyCoinDamage({ all: true, color: '#ffa502', label: 'All!' }, time);
                         pterodactyls.splice(i, 1);
                     }
                 }
@@ -607,9 +642,7 @@
                     let dx = plane.x - m.x;
                     let dy = plane.y - m.y;
                     if (Math.sqrt(dx*dx + dy*dy) < 25) {
-                        coinsCollected = 0;
-                        score = 0;
-                        updateScoreDisplay();
+                        applyCoinDamage({ all: true, color: '#ff4757', label: 'Zap!' }, time);
                         missiles.splice(i, 1);
                     }
                 }
@@ -647,32 +680,69 @@
                 for (let p of pterodactyls) {
                     ctx.save();
                     ctx.translate(p.x, p.y);
-                    ctx.scale(1.1, 1.1);
-                    ctx.fillStyle = '#8d5524';
+                    const wingFlap = Math.sin((time / 220) + p.flapOffset) * 10;
+                    ctx.scale(1.15, 1.15);
+                    
+                    // Body
+                    ctx.fillStyle = '#f4a261';
                     ctx.beginPath();
-                    ctx.moveTo(0, 0);
-                    ctx.lineTo(-40, -12);
-                    ctx.lineTo(-40, 12);
+                    ctx.moveTo(20, 0);
+                    ctx.quadraticCurveTo(-5, -12, -35, -6);
+                    ctx.quadraticCurveTo(-25, 0, -35, 6);
+                    ctx.quadraticCurveTo(-5, 12, 20, 0);
+                    ctx.fill();
+                    
+                    // Belly highlight
+                    ctx.fillStyle = '#ffe0b5';
+                    ctx.beginPath();
+                    ctx.moveTo(-5, -6);
+                    ctx.quadraticCurveTo(-15, 0, -5, 6);
+                    ctx.quadraticCurveTo(5, 0, -5, -6);
+                    ctx.fill();
+                    
+                    // Wings
+                    ctx.fillStyle = '#e76f51';
+                    ctx.beginPath();
+                    ctx.moveTo(-10, -4);
+                    ctx.lineTo(-55, -25 - wingFlap);
+                    ctx.lineTo(-15, -2);
                     ctx.closePath();
                     ctx.fill();
-                    ctx.fillStyle = '#c97f36';
                     ctx.beginPath();
-                    ctx.moveTo(0, 0);
-                    ctx.lineTo(15, -8);
-                    ctx.lineTo(15, 8);
+                    ctx.moveTo(-10, 4);
+                    ctx.lineTo(-55, 25 + wingFlap);
+                    ctx.lineTo(-15, 2);
                     ctx.closePath();
                     ctx.fill();
-                    ctx.fillStyle = '#5d3a17';
+                    
+                    // Beak
+                    ctx.fillStyle = '#fcbf49';
                     ctx.beginPath();
-                    ctx.moveTo(-25, -8);
-                    ctx.lineTo(-45, -25);
-                    ctx.lineTo(-5, -2);
+                    ctx.moveTo(20, -4);
+                    ctx.lineTo(35, 0);
+                    ctx.lineTo(20, 4);
+                    ctx.closePath();
                     ctx.fill();
+                    
+                    // Eye
+                    ctx.fillStyle = '#ffffff';
                     ctx.beginPath();
-                    ctx.moveTo(-25, 8);
-                    ctx.lineTo(-45, 25);
-                    ctx.lineTo(-5, 2);
+                    ctx.arc(10, -4, 5, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.fillStyle = '#2d3436';
+                    ctx.beginPath();
+                    ctx.arc(11, -4, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Outline for cartoon feel
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(20, 0);
+                    ctx.quadraticCurveTo(-5, -12, -35, -6);
+                    ctx.quadraticCurveTo(-25, 0, -35, 6);
+                    ctx.quadraticCurveTo(-5, 12, 20, 0);
+                    ctx.stroke();
                     ctx.restore();
                 }
                 
@@ -794,20 +864,15 @@
                 ctx.restore();
                 
                 // Collision detection with clouds (adjusted for size)
-                for (let c of clouds) {
+                for (let i = clouds.length - 1; i >= 0; i--) {
+                    const c = clouds[i];
                     const s = c.size || 1;
                     let dx = plane.x - (c.x + 25 * s);
                     let dy = plane.y - c.y;
                     let collisionRadius = 40 * s; // Bigger clouds = bigger collision area
                     if (Math.sqrt(dx*dx + dy*dy) < collisionRadius) {
-                        // Game over
-                        playing = false;
-                        const diffName = difficulties[selectedDifficulty].name;
-                        document.getElementById('menuTitle').textContent = 'Game Over!';
-                        document.getElementById('menuText').innerHTML = 'Score: <span style="color:#ffd700;font-size:2em">' + score + '</span><br>Difficulty: <span style="color:#4ecdc4">' + diffName + '</span>';
-                        document.getElementById('startBtn').textContent = 'Play Again';
-                        document.getElementById('menu').classList.remove('hidden');
-                        break;
+                        applyCoinDamage({ amount: 2, color: '#ff6b6b', label: '-2' }, time);
+                        clouds.splice(i, 1);
                     }
                 }
                 
@@ -825,6 +890,34 @@
                         if (!jetsActive && totalStarsCollected >= 20) jetsActive = true;
                     }
                 }
+            }
+            
+            for (let i = damageBursts.length - 1; i >= 0; i--) {
+                const effect = damageBursts[i];
+                const progress = Math.min((time - effect.start) / DAMAGE_EFFECT_DURATION, 1);
+                if (progress >= 1) {
+                    damageBursts.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = 1 - progress;
+                ctx.strokeStyle = effect.color || '#ff6b6b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 35 + progress * 45, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 26px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(effect.label || '-', effect.x, effect.y - 40 - progress * 30);
+                ctx.restore();
+            }
+            
+            if (screenFlashAlpha > 0) {
+                ctx.fillStyle = 'rgba(255, 99, 71,' + (screenFlashAlpha * 0.35) + ')';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                screenFlashAlpha = Math.max(0, screenFlashAlpha - 0.02);
             }
             
             requestAnimationFrame(loop);
