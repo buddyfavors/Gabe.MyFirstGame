@@ -1591,21 +1591,22 @@
         
         // Draw a single goose used to compose migrating flocks
         function drawMigratingGoose(ctx, palette, wingPhase, scale = 1) {
-            const wingBeat = Math.sin(wingPhase);
+            const wingBeat = Math.sin(wingPhase) * 0.5;
             ctx.save();
             ctx.scale(scale, scale);
+            ctx.scale(-1, 1);
             
             ctx.fillStyle = palette.wing;
             ctx.beginPath();
             ctx.moveTo(-6, 0);
-            ctx.quadraticCurveTo(-28, -8 - wingBeat * 18, -44, -4 - wingBeat * 14);
-            ctx.quadraticCurveTo(-24, -2, -6, 0);
+            ctx.quadraticCurveTo(-24, -6 - wingBeat * 8, -38, -3 - wingBeat * 6);
+            ctx.quadraticCurveTo(-22, -1, -6, 0);
             ctx.closePath();
             ctx.fill();
             ctx.beginPath();
             ctx.moveTo(-6, 0);
-            ctx.quadraticCurveTo(-28, 8 + wingBeat * 18, -44, 4 + wingBeat * 14);
-            ctx.quadraticCurveTo(-24, 2, -6, 0);
+            ctx.quadraticCurveTo(-24, 6 + wingBeat * 8, -38, 3 + wingBeat * 6);
+            ctx.quadraticCurveTo(-22, 1, -6, 0);
             ctx.closePath();
             ctx.fill();
             
@@ -2012,7 +2013,7 @@
                         const flockScale = 0.85 + Math.random() * 0.3;
                         const spacingX = randomInRange(32, 46);
                         const spacingY = randomInRange(18, 26);
-                        const gooseCount = 5 + Math.floor(Math.random() * 3);
+                        const gooseCount = 3 + Math.floor(Math.random() * 3);
                         const geese = [{
                             xOffset: 0,
                             yOffset: 0,
