@@ -112,6 +112,12 @@
             min-height: 18px;
             letter-spacing: 0.5px;
         }
+        #boostStatus {
+            font-size: 14px;
+            color: #74b9ff;
+            min-height: 18px;
+            letter-spacing: 0.5px;
+        }
         
         @media (max-width: 600px) {
             #ui {
@@ -285,6 +291,7 @@
         </div>
         <div id="diffDisplay" style="font-size: 14px; margin-top: 5px; opacity: 0.7;"></div>
         <div id="shieldStatus"></div>
+        <div id="boostStatus"></div>
     </div>
     
     <div id="menu">
@@ -313,6 +320,7 @@
         const coinIcon = document.getElementById('coinIcon');
         const coinGainTag = document.getElementById('coinGainTag');
         const shieldStatus = document.getElementById('shieldStatus');
+        const boostStatus = document.getElementById('boostStatus');
         const menu = document.getElementById('menu');
         const menuTitle = document.getElementById('menuTitle');
         const menuText = document.getElementById('menuText');
@@ -335,6 +343,11 @@
         const POWERUP_INTERVAL = 14000;
         const POWERUP_LIMIT = 1;
         const SHIELD_DURATION = 5000;
+        const SPEED_BOOST_MULTIPLIER = 1.7;
+        const SPEED_BOOST_DURATION = 3200;
+        const SPEED_BOOST_COOLDOWN = 6000;
+        const DOUBLE_TAP_INTERVAL = 300;
+        const DOUBLE_TAP_MAX_DISTANCE = 60;
         
         function resize() {
             canvas.width = window.innerWidth;
@@ -503,6 +516,12 @@
         let coinGainTimeout = null;
         let shieldActive = false;
         let shieldExpiresAt = 0;
+        let speedBoostActive = false;
+        let speedBoostEndsAt = 0;
+        let speedBoostCooldownUntil = 0;
+        let lastTapTime = 0;
+        let lastTapX = null;
+        let lastTapY = null;
         
         function resetPlanePosition() {
             plane.x = canvas.width * PLANE_X_RATIO;
@@ -604,6 +623,12 @@
                 shieldStatus.textContent = text || '';
             }
         }
+        
+        function setBoostStatus(text) {
+            if (boostStatus) {
+                boostStatus.textContent = text || '';
+            }
+        }
 
         function activateShield(time) {
             shieldActive = true;
@@ -623,6 +648,78 @@
             shieldActive = false;
             shieldExpiresAt = 0;
             setShieldStatus('');
+        }
+        
+        function resetSpeedBoostState(now = 0) {
+            speedBoostActive = false;
+            speedBoostEndsAt = 0;
+            speedBoostCooldownUntil = now;
+            lastTapTime = 0;
+            lastTapX = null;
+            lastTapY = null;
+            if (!playing) {
+                setBoostStatus('');
+            }
+        }
+        
+        function tryActivateSpeedBoost(time) {
+            if (!playing || speedBoostActive || time < speedBoostCooldownUntil) return false;
+            speedBoostActive = true;
+            speedBoostEndsAt = time + SPEED_BOOST_DURATION;
+            speedBoostCooldownUntil = speedBoostEndsAt + SPEED_BOOST_COOLDOWN;
+            triggerBurstEffect({
+                x: plane.x,
+                y: plane.y,
+                color: '#74b9ff',
+                textColor: '#e8f2ff',
+                label: 'Boost!',
+                type: 'reward'
+            }, time);
+            return true;
+        }
+        
+        function updateSpeedBoostState(time) {
+            if (!playing) {
+                speedBoostActive = false;
+                return;
+            }
+            if (speedBoostActive && time >= speedBoostEndsAt) {
+                speedBoostActive = false;
+            }
+        }
+        
+        function updateBoostStatus(time) {
+            if (!boostStatus) return;
+            if (!playing) {
+                setBoostStatus('');
+                return;
+            }
+            if (speedBoostActive) {
+                const remaining = Math.max(speedBoostEndsAt - time, 0);
+                setBoostStatus('Boost ' + (remaining / 1000).toFixed(1) + 's');
+                return;
+            }
+            const cooldownRemaining = Math.max(speedBoostCooldownUntil - time, 0);
+            if (cooldownRemaining > 0) {
+                setBoostStatus('Boost CD ' + (cooldownRemaining / 1000).toFixed(1) + 's');
+            } else {
+                setBoostStatus('Double tap ready');
+            }
+        }
+        
+        function handleTapGesture(x, y, time) {
+            if (!playing) return;
+            if (lastTapTime && (time - lastTapTime) <= DOUBLE_TAP_INTERVAL) {
+                const dx = x - (lastTapX ?? x);
+                const dy = y - (lastTapY ?? y);
+                const distance = Math.hypot(dx, dy);
+                if (distance <= DOUBLE_TAP_MAX_DISTANCE) {
+                    tryActivateSpeedBoost(time);
+                }
+            }
+            lastTapTime = time;
+            lastTapX = x;
+            lastTapY = y;
         }
 
         function handleShieldBlock(label, time) {
@@ -717,6 +814,7 @@
             burstEffects = [];
             screenFlashAlpha = 0;
             deactivateShield();
+            resetSpeedBoostState(performance.now());
             if (menuTitle) menuTitle.textContent = 'Mission Failed';
             if (menuText) {
                 menuText.innerHTML = `${reason}<br><br>Coins: ${coinsCollected}<br>Score: ${score}`;
@@ -747,6 +845,9 @@
         
         canvas.addEventListener('mousedown', function(e) {
             targetY = e.clientY;
+            if (e.button === 0) {
+                handleTapGesture(e.clientX, e.clientY, performance.now());
+            }
         });
         
         canvas.addEventListener('mouseleave', function() {
@@ -757,7 +858,9 @@
         canvas.addEventListener('touchstart', function(e) {
             e.preventDefault();
             if (e.touches.length > 0) {
-                targetY = e.touches[0].clientY;
+                const touch = e.touches[0];
+                targetY = touch.clientY;
+                handleTapGesture(touch.clientX, touch.clientY, performance.now());
             }
         }, { passive: false });
         
@@ -793,18 +896,20 @@
             jetsActive = false;
             currentMultiplier = selectedDifficulty + 1;
             deactivateShield();
+            const now = performance.now();
+            resetSpeedBoostState(now);
             updateCoinDisplay();
             if (coinGainTag) {
                 coinGainTag.textContent = '';
                 coinGainTag.classList.remove('visible', 'loss');
             }
-            const now = performance.now();
             lastPterodactyl = now;
             lastFighterJet = now;
             lastBigCoin = now;
             lastPowerup = now;
             jetActivationStart = now;
             updateScoreDisplay();
+            updateBoostStatus(now);
             
             // Show difficulty and point multiplier
             const diff = difficulties[selectedDifficulty];
@@ -822,6 +927,9 @@
             // Clear screen
             ctx.fillStyle = '#16213e';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            updateSpeedBoostState(time);
+            updateBoostStatus(time);
             
             if (playing) {
                 if (shieldActive) {
@@ -842,6 +950,7 @@
                 const fighterJetLimit = diff.fighterJetLimit || FIGHTER_JET_LIMIT;
                 const jetActivationDelay = (diff.jetActivationDelay !== undefined) ? diff.jetActivationDelay : null;
                 const jetActivationCoinThreshold = (diff.jetActivationCoinThreshold !== undefined) ? diff.jetActivationCoinThreshold : JET_ACTIVATION_COIN_THRESHOLD;
+                const worldSpeed = speedBoostActive ? speed * SPEED_BOOST_MULTIPLIER : speed;
 
                 if (!jetsActive) {
                     const delayElapsed = jetActivationDelay !== null && (time - jetActivationStart) >= jetActivationDelay;
@@ -952,20 +1061,20 @@
                 
                 // Update clouds
                 for (let i = clouds.length - 1; i >= 0; i--) {
-                    clouds[i].x -= speed;
+                    clouds[i].x -= worldSpeed;
                     if (clouds[i].x < -100) clouds.splice(i, 1);
                 }
                 
                 // Update stars
                 for (let i = stars.length - 1; i >= 0; i--) {
-                    stars[i].x -= speed + 1;
+                    stars[i].x -= worldSpeed + 1;
                     if (stars[i].x < -20) stars.splice(i, 1);
                 }
                 
                 // Update big coins
                 for (let i = bigCoins.length - 1; i >= 0; i--) {
                     const big = bigCoins[i];
-                    big.x -= speed + 0.9;
+                    big.x -= worldSpeed + 0.9;
                     big.pulse = (big.pulse || 0) + 0.05;
                     big.wobble = Math.sin((time / 250) + big.pulse) * 2;
                     if (big.x < -100) {
@@ -976,7 +1085,7 @@
                 // Update powerups
                 for (let i = powerups.length - 1; i >= 0; i--) {
                     const item = powerups[i];
-                    item.x -= speed + 0.7;
+                    item.x -= worldSpeed + 0.7;
                     item.drift += 0.03;
                     item.y += Math.sin(item.drift) * 0.7;
                     if (item.x < -80) {
