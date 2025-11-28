@@ -1621,19 +1621,20 @@
             
             ctx.fillStyle = palette.wing;
             const drawWing = (direction = 1) => {
+                const angleOffset = wingBeat * 0.35;
+                const wingLength = 32 + wingBeat * 6;
+                ctx.save();
+                ctx.translate(-6, 0);
+                // Keep wings perpendicular to the body axis and let the flap slightly tilt them
+                ctx.rotate(direction * (Math.PI / 2 + angleOffset));
                 ctx.beginPath();
-                ctx.moveTo(-6, 0);
-                ctx.quadraticCurveTo(
-                    -26,
-                    direction * (3 + wingBeat * 5),
-                    -54,
-                    direction * (1 + wingBeat * 3)
-                );
-                ctx.quadraticCurveTo(-28, direction * 0.6, -6, 0);
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(-wingLength * 0.35, -6, -wingLength, 0);
+                ctx.quadraticCurveTo(-wingLength * 0.35, 6, 0, 0);
                 ctx.closePath();
                 ctx.fill();
+                ctx.restore();
             };
-            // Wings hug the body less so they feel stretched outward
             drawWing(-1);
             drawWing(1);
             
