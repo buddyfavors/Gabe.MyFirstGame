@@ -604,7 +604,7 @@
     <div id="menu">
         <h1 id="menuTitle">Sky Drifter</h1>
         <div id="versionTag" class="version-pill" role="status" aria-live="polite">Loading version...</div>
-        <p id="menuText">Drag your mouse or thumb to fly — double tap or hit Boost on phones to sprint.<br>Collect glowing coins and avoid clouds!</p>
+        <p id="menuText">Drag your mouse or thumb to fly — press Space/Shift or double tap to sprint.<br>Collect glowing coins and avoid clouds!</p>
         
         <div id="difficultySelector">
             <p style="color: #aaa; margin-bottom: 10px;">Select Difficulty:</p>
@@ -1547,7 +1547,7 @@
                 setBoostStatus('Boost CD ' + seconds + 's');
                 updateMobileBoostButton({ label: `Ready in ${seconds}s`, disabled: true, ariaLabel: `Boost cooldown ${seconds} seconds remaining` });
             } else {
-                setBoostStatus('Double tap ready');
+                setBoostStatus('Boost ready (Space)');
                 updateMobileBoostButton({ label: 'Boost Ready', disabled: false, ariaLabel: 'Boost ready' });
             }
         }
@@ -2040,6 +2040,11 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'ArrowUp' || e.key === 'w') up = true;
             if (e.key === 'ArrowDown' || e.key === 's') down = true;
+            // Spacebar or Shift triggers speed boost
+            if (e.key === ' ' || e.key === 'Shift') {
+                e.preventDefault();
+                tryActivateSpeedBoost(performance.now());
+            }
         });
         
         document.addEventListener('keyup', function(e) {
