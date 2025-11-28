@@ -565,6 +565,7 @@
         let speedBoostActive = false;
         let speedBoostEndsAt = 0;
         let speedBoostCooldownUntil = 0;
+        let speedBoostStartedAt = 0;
         let lastTapTime = 0;
         let lastTapX = null;
         let lastTapY = null;
@@ -700,6 +701,7 @@
             speedBoostActive = false;
             speedBoostEndsAt = 0;
             speedBoostCooldownUntil = now;
+            speedBoostStartedAt = 0;
             lastTapTime = 0;
             lastTapX = null;
             lastTapY = null;
@@ -713,6 +715,7 @@
             speedBoostActive = true;
             speedBoostEndsAt = time + SPEED_BOOST_DURATION;
             speedBoostCooldownUntil = speedBoostEndsAt + SPEED_BOOST_COOLDOWN;
+            speedBoostStartedAt = time;
             triggerBurstEffect({
                 x: plane.x,
                 y: plane.y,
@@ -727,10 +730,12 @@
         function updateSpeedBoostState(time) {
             if (!playing) {
                 speedBoostActive = false;
+                speedBoostStartedAt = 0;
                 return;
             }
             if (speedBoostActive && time >= speedBoostEndsAt) {
                 speedBoostActive = false;
+                speedBoostStartedAt = 0;
             }
         }
         
@@ -796,6 +801,22 @@
             if (effect.type !== 'reward') {
                 screenFlashAlpha = 0.45;
             }
+        }
+        
+        // Shared sonic trail used for both jets and player boosts
+        function drawSpeedTrail(ctx, alpha = 0.8) {
+            const clampedAlpha = Math.max(0, Math.min(alpha, 1));
+            const trailGradient = ctx.createLinearGradient(-130, 0, -5, 0);
+            trailGradient.addColorStop(0, 'rgba(148, 255, 255, 0)');
+            trailGradient.addColorStop(1, 'rgba(148, 255, 255,' + clampedAlpha + ')');
+            ctx.fillStyle = trailGradient;
+            ctx.beginPath();
+            ctx.moveTo(-130, -18);
+            ctx.lineTo(-15, -6);
+            ctx.lineTo(-15, 6);
+            ctx.lineTo(-130, 18);
+            ctx.closePath();
+            ctx.fill();
         }
 
         function startJetEscape(jet, time) {
@@ -1401,17 +1422,7 @@
                     ctx.translate(jet.x, jet.y);
                     if (jet.evading) {
                         const progress = jet.escapeStart ? Math.min((time - jet.escapeStart) / 600, 1) : 0;
-                        const trailGradient = ctx.createLinearGradient(-130, 0, -5, 0);
-                        trailGradient.addColorStop(0, 'rgba(148, 255, 255, 0)');
-                        trailGradient.addColorStop(1, 'rgba(148, 255, 255,' + (0.5 + 0.3 * (1 - progress)) + ')');
-                        ctx.fillStyle = trailGradient;
-                        ctx.beginPath();
-                        ctx.moveTo(-130, -18);
-                        ctx.lineTo(-15, -6);
-                        ctx.lineTo(-15, 6);
-                        ctx.lineTo(-130, 18);
-                        ctx.closePath();
-                        ctx.fill();
+                        drawSpeedTrail(ctx, 0.5 + 0.3 * (1 - progress));
                     }
                     ctx.fillStyle = '#95a5a6';
                     ctx.fillRect(-35, -6, 70, 12);
@@ -1458,6 +1469,11 @@
                 ctx.save();
                 ctx.translate(plane.x, plane.y);
                 ctx.rotate(plane.vy * 0.05);
+                
+                if (speedBoostActive) {
+                    const boostProgress = speedBoostStartedAt ? Math.min((time - speedBoostStartedAt) / SPEED_BOOST_DURATION, 1) : 0;
+                    drawSpeedTrail(ctx, 0.5 + 0.3 * (1 - boostProgress));
+                }
                 
                 // Body
                 ctx.fillStyle = skin.body;
