@@ -858,6 +858,10 @@
         const COMBO_ROUTE_INTERVAL_MIN = 14000;
         const COMBO_ROUTE_INTERVAL_MAX = 22000;
         const COMBO_CHAIN_TIMEOUT = 1500;
+        const COMBO_ROUTE_SPACING_MIN = 160;
+        const COMBO_ROUTE_VERTICAL_BASE = 60;
+        const COMBO_ROUTE_STEP_LIMIT = 55;
+        const COMBO_ROUTE_SMOOTHING = 0.65;
         let comboRoute = null;
         let comboProgress = 0;
         let comboTier = 0;
@@ -1424,13 +1428,32 @@
         }
         function spawnComboRoute(time) {
             const count = 4 + selectedDifficulty;
-            const spacing = Math.max(120, canvas.width / (count + 2));
-            const baseY = randomInRange(100, canvas.height - 120);
+            const spacing = Math.max(COMBO_ROUTE_SPACING_MIN, canvas.width / (count + 1.5));
+            const minY = 80;
+            const maxY = canvas.height - 80;
+            const baseY = randomInRange(minY + 40, maxY - 40);
+            const verticalAmplitude = COMBO_ROUTE_VERTICAL_BASE + selectedDifficulty * 6;
             const nodes = [];
+            let currentY = baseY;
+            const waveOffset = Math.random() * Math.PI * 2;
+            // Build a gently sweeping path so combos feel more attainable
             for (let i = 0; i < count; i++) {
+                const progress = count > 1 ? i / (count - 1) : 0;
+                const wave = Math.sin(progress * Math.PI * 1.15 + waveOffset) * verticalAmplitude;
+                const nudge = randomInRange(-verticalAmplitude * 0.35, verticalAmplitude * 0.35);
+                let desiredY = baseY + wave + nudge;
+                desiredY = Math.min(maxY, Math.max(minY, desiredY));
+                if (i === 0) {
+                    currentY = desiredY;
+                } else {
+                    const delta = desiredY - currentY;
+                    const limitedDelta = Math.max(-COMBO_ROUTE_STEP_LIMIT, Math.min(COMBO_ROUTE_STEP_LIMIT, delta));
+                    currentY += limitedDelta * COMBO_ROUTE_SMOOTHING;
+                }
+                currentY = Math.min(maxY, Math.max(minY, currentY));
                 nodes.push({
                     x: canvas.width + 80 + i * spacing,
-                    y: Math.min(canvas.height - 80, Math.max(80, baseY + Math.sin(i * 0.8) * 90)),
+                    y: currentY,
                     collected: false
                 });
             }
@@ -1597,18 +1620,22 @@
             ctx.scale(-1, 1);
             
             ctx.fillStyle = palette.wing;
-            ctx.beginPath();
-            ctx.moveTo(-6, 0);
-            ctx.quadraticCurveTo(-24, -6 - wingBeat * 8, -38, -3 - wingBeat * 6);
-            ctx.quadraticCurveTo(-22, -1, -6, 0);
-            ctx.closePath();
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(-6, 0);
-            ctx.quadraticCurveTo(-24, 6 + wingBeat * 8, -38, 3 + wingBeat * 6);
-            ctx.quadraticCurveTo(-22, 1, -6, 0);
-            ctx.closePath();
-            ctx.fill();
+            const drawWing = (direction = 1) => {
+                ctx.beginPath();
+                ctx.moveTo(-6, 0);
+                ctx.quadraticCurveTo(
+                    -26,
+                    direction * (3 + wingBeat * 5),
+                    -54,
+                    direction * (1 + wingBeat * 3)
+                );
+                ctx.quadraticCurveTo(-28, direction * 0.6, -6, 0);
+                ctx.closePath();
+                ctx.fill();
+            };
+            // Wings hug the body less so they feel stretched outward
+            drawWing(-1);
+            drawWing(1);
             
             ctx.fillStyle = palette.body;
             ctx.beginPath();
@@ -2494,7 +2521,7 @@
                 }
                 
                 if (comboRoute) {
-                    const comboPickupRadius = 24 + magnetBoost;
+                    const comboPickupRadius = 28 + magnetBoost;
                     let broke = false;
                     for (let i = 0; i < comboRoute.nodes.length; i++) {
                         const node = comboRoute.nodes[i];
