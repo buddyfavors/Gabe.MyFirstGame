@@ -110,22 +110,22 @@
             font-size: 20px;
         }
         .coin-icon {
-            width: 26px;
-            height: 26px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             background: radial-gradient(circle at 35% 25%, #fffbd1, #ffe066 45%, #d9a404 100%);
             border: 2px solid #ffe066;
-            box-shadow: 0 0 15px rgba(255, 213, 0, 0.6);
+            box-shadow: 0 0 18px rgba(255, 213, 0, 0.7);
             position: relative;
             transition: transform 0.15s;
         }
         .coin-icon::after {
             content: '';
             position: absolute;
-            top: 5px;
-            left: 7px;
-            width: 10px;
-            height: 10px;
+            top: 6px;
+            left: 9px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             border: 2px solid rgba(255, 255, 255, 0.6);
             opacity: 0.75;
@@ -1132,6 +1132,37 @@
         let fighterJets = [];
         let missiles = [];
         
+        const SMALL_COIN_RADIUS = 16;
+        const BIG_COIN_BASE_RADIUS = 26;
+        const SMALL_COIN_PICKUP_PADDING = 14;
+        const BIG_COIN_PICKUP_PADDING = 16;
+        const PTERODACTYL_VARIANTS = [
+            {
+                body: '#c97c47',
+                wing: '#8e4b32',
+                belly: '#f5cf9d',
+                crest: '#d8572a',
+                beak: '#f5b041',
+                detail: '#4a2f23'
+            },
+            {
+                body: '#b36b3c',
+                wing: '#723826',
+                belly: '#f0c49e',
+                crest: '#e85d75',
+                beak: '#f4a259',
+                detail: '#3e1f1a'
+            },
+            {
+                body: '#a56a43',
+                wing: '#7b4a28',
+                belly: '#f4dab2',
+                crest: '#f77f00',
+                beak: '#ffbe5b',
+                detail: '#41281a'
+            }
+        ];
+        
         let coinsCollected = 0;
         let totalStarsCollected = 0;
         let currentMultiplier = 1;
@@ -1851,11 +1882,16 @@
                     const availableSlots = Math.max(0, pterodactylLimit - pterodactyls.length);
                     const spawnCount = Math.min(pterodactylBurst, availableSlots);
                     for (let i = 0; i < spawnCount; i++) {
+                        const palette = PTERODACTYL_VARIANTS[Math.floor(Math.random() * PTERODACTYL_VARIANTS.length)];
                         pterodactyls.push({
                             x: canvas.width + 80 + i * 40,
                             y: Math.random() * (canvas.height - 140) + 70,
                             speed: speed + 2 + Math.random() * 1.5,
-                            flapOffset: Math.random() * Math.PI * 2
+                            flapOffset: Math.random() * Math.PI * 2,
+                            scale: 0.9 + Math.random() * 0.35,
+                            glideTilt: randomInRange(-0.08, 0.08),
+                            wingSpan: 110 + Math.random() * 25,
+                            palette
                         });
                     }
                     lastPterodactyl = time;
@@ -2033,7 +2069,7 @@
                 
                 // Draw coins (formerly stars) with depth and shine
                 for (let s of stars) {
-                    const radius = 13;
+                    const radius = SMALL_COIN_RADIUS;
                     const gradient = ctx.createRadialGradient(s.x - 5, s.y - 6, 4, s.x, s.y, radius);
                     gradient.addColorStop(0, '#fffbd1');
                     gradient.addColorStop(0.45, '#ffe066');
@@ -2062,7 +2098,7 @@
                 
                 // Draw BIG coins
                 for (let big of bigCoins) {
-                    const radius = 22 + Math.sin(big.pulse || 0) * 2;
+                    const radius = BIG_COIN_BASE_RADIUS + Math.sin(big.pulse || 0) * 2;
                     ctx.save();
                     ctx.translate(big.x, big.y + (big.wobble || 0));
                     ctx.rotate(Math.sin((big.pulse || 0) * 0.7) * 0.2);
@@ -2084,7 +2120,7 @@
                     ctx.arc(0, 0, radius, 0, Math.PI * 2);
                     ctx.stroke();
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
-                    ctx.font = 'bold 28px Arial';
+                    ctx.font = 'bold 30px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('50', 0, 0);
@@ -2124,72 +2160,147 @@
                 
                 drawComboRoute(ctx, time);
                 
-                // Draw pterodactyls
+                // Draw pterodactyls with richer detail
                 for (let p of pterodactyls) {
                     ctx.save();
                     ctx.translate(p.x, p.y);
-                    const wingFlap = Math.sin((time / 220) + p.flapOffset) * 10;
-                    ctx.scale(1.15, 1.15);
+                    const palette = p.palette || PTERODACTYL_VARIANTS[0];
+                    const scale = (p.scale || 1) * 1.15;
+                    const span = p.wingSpan || 120;
+                    const wingFlap = Math.sin((time / 260) + p.flapOffset);
+                    ctx.scale(scale, scale);
+                    ctx.rotate((p.glideTilt || 0) + wingFlap * 0.04);
+                    
+                    const drawWing = (flip = 1) => {
+                        ctx.save();
+                        ctx.scale(1, flip);
+                        const lift = 30 + wingFlap * 18;
+                        const membraneDip = 18 + Math.abs(wingFlap) * 10;
+                        ctx.fillStyle = palette.wing;
+                        ctx.beginPath();
+                        ctx.moveTo(-5, -3);
+                        ctx.quadraticCurveTo(-span * 0.35, -lift, -span, -membraneDip);
+                        ctx.quadraticCurveTo(-span * 0.4, -6, -6, 4);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        ctx.globalAlpha = 0.35;
+                        ctx.fillStyle = palette.belly;
+                        ctx.beginPath();
+                        ctx.moveTo(-8, -1);
+                        ctx.quadraticCurveTo(-span * 0.25, -lift * 0.5, -span * 0.62, -membraneDip * 0.3);
+                        ctx.quadraticCurveTo(-span * 0.3, -2, -6, 2);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                        
+                        ctx.strokeStyle = palette.detail;
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.moveTo(-5, -2);
+                        ctx.quadraticCurveTo(-span * 0.45, -lift * 0.6, -span + 8, -membraneDip * 0.45);
+                        ctx.stroke();
+                        ctx.restore();
+                    };
+                    
+                    drawWing(1);
+                    drawWing(-1);
+                    
+                    // Tail
+                    const tailGradient = ctx.createLinearGradient(-60, -8, -15, 8);
+                    tailGradient.addColorStop(0, palette.detail);
+                    tailGradient.addColorStop(1, palette.body);
+                    ctx.fillStyle = tailGradient;
+                    ctx.beginPath();
+                    ctx.moveTo(-50, -4);
+                    ctx.quadraticCurveTo(-70, -18, -90, -6);
+                    ctx.lineTo(-35, 4);
+                    ctx.quadraticCurveTo(-70, 18, -95, 6);
+                    ctx.closePath();
+                    ctx.fill();
                     
                     // Body
-                    ctx.fillStyle = '#f4a261';
+                    const bodyGradient = ctx.createLinearGradient(-40, -18, 32, 12);
+                    bodyGradient.addColorStop(0, palette.detail);
+                    bodyGradient.addColorStop(0.45, palette.body);
+                    bodyGradient.addColorStop(1, '#f7d1a3');
+                    ctx.fillStyle = bodyGradient;
                     ctx.beginPath();
-                    ctx.moveTo(20, 0);
-                    ctx.quadraticCurveTo(-5, -12, -35, -6);
-                    ctx.quadraticCurveTo(-25, 0, -35, 6);
-                    ctx.quadraticCurveTo(-5, 12, 20, 0);
+                    ctx.moveTo(32, -6);
+                    ctx.quadraticCurveTo(12, -20, -8, -18);
+                    ctx.quadraticCurveTo(-26, -8, -34, 0);
+                    ctx.quadraticCurveTo(-26, 8, -8, 16);
+                    ctx.quadraticCurveTo(10, 12, 34, 2);
+                    ctx.closePath();
                     ctx.fill();
                     
                     // Belly highlight
-                    ctx.fillStyle = '#ffe0b5';
+                    ctx.fillStyle = palette.belly;
                     ctx.beginPath();
-                    ctx.moveTo(-5, -6);
-                    ctx.quadraticCurveTo(-15, 0, -5, 6);
-                    ctx.quadraticCurveTo(5, 0, -5, -6);
+                    ctx.moveTo(12, -6);
+                    ctx.quadraticCurveTo(-4, -4, -18, -1);
+                    ctx.quadraticCurveTo(-6, 6, 10, 6);
+                    ctx.quadraticCurveTo(18, 2, 12, -6);
                     ctx.fill();
                     
-                    // Wings
-                    ctx.fillStyle = '#e76f51';
+                    // Neck and head
+                    ctx.fillStyle = palette.body;
                     ctx.beginPath();
-                    ctx.moveTo(-10, -4);
-                    ctx.lineTo(-55, -25 - wingFlap);
-                    ctx.lineTo(-15, -2);
+                    ctx.moveTo(32, -6);
+                    ctx.quadraticCurveTo(38, -16, 48, -10);
+                    ctx.quadraticCurveTo(42, 0, 34, 4);
                     ctx.closePath();
                     ctx.fill();
+                    
+                    // Crest
+                    ctx.fillStyle = palette.crest;
                     ctx.beginPath();
-                    ctx.moveTo(-10, 4);
-                    ctx.lineTo(-55, 25 + wingFlap);
-                    ctx.lineTo(-15, 2);
+                    ctx.moveTo(18, -10);
+                    ctx.lineTo(12, -30);
+                    ctx.lineTo(4, -8);
                     ctx.closePath();
                     ctx.fill();
                     
                     // Beak
-                    ctx.fillStyle = '#fcbf49';
+                    ctx.fillStyle = palette.beak;
                     ctx.beginPath();
-                    ctx.moveTo(20, -4);
-                    ctx.lineTo(35, 0);
-                    ctx.lineTo(20, 4);
-                    ctx.closePath();
+                    ctx.moveTo(34, -4);
+                    ctx.lineTo(54, 0);
+                    ctx.lineTo(34, 4);
+                    ctx.quadraticCurveTo(44, 0, 34, -4);
                     ctx.fill();
                     
                     // Eye
                     ctx.fillStyle = '#ffffff';
                     ctx.beginPath();
-                    ctx.arc(10, -4, 5, 0, Math.PI * 2);
+                    ctx.arc(20, -6, 3.5, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.fillStyle = '#2d3436';
+                    ctx.fillStyle = palette.detail;
                     ctx.beginPath();
-                    ctx.arc(11, -4, 2, 0, Math.PI * 2);
+                    ctx.arc(21, -6, 1.5, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Outline for cartoon feel
-                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+                    // Legs and claws
+                    ctx.strokeStyle = palette.detail;
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.moveTo(20, 0);
-                    ctx.quadraticCurveTo(-5, -12, -35, -6);
-                    ctx.quadraticCurveTo(-25, 0, -35, 6);
-                    ctx.quadraticCurveTo(-5, 12, 20, 0);
+                    ctx.moveTo(-8, 6);
+                    ctx.lineTo(-20, 16);
+                    ctx.lineTo(-14, 20);
+                    ctx.moveTo(-6, 8);
+                    ctx.lineTo(-16, 22);
+                    ctx.lineTo(-10, 24);
+                    ctx.stroke();
+                    
+                    // Outline
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(34, 2);
+                    ctx.quadraticCurveTo(10, 12, -8, 16);
+                    ctx.quadraticCurveTo(-26, 8, -34, 0);
+                    ctx.quadraticCurveTo(-26, -8, -8, -18);
+                    ctx.quadraticCurveTo(12, -20, 32, -6);
                     ctx.stroke();
                     ctx.restore();
                 }
@@ -2383,7 +2494,8 @@
                     const star = stars[i];
                     let dx = plane.x - star.x;
                     let dy = plane.y - star.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < 30 + magnetBoost) {
+                    const coinPickupRadius = SMALL_COIN_RADIUS + SMALL_COIN_PICKUP_PADDING + magnetBoost;
+                    if (Math.sqrt(dx*dx + dy*dy) < coinPickupRadius) {
                         stars.splice(i, 1);
                         awardCoins(1, time, { sourceX: star.x, sourceY: star.y });
                     }
@@ -2394,7 +2506,8 @@
                     const big = bigCoins[i];
                     let dx = plane.x - big.x;
                     let dy = plane.y - big.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < 40 + magnetBoost * 0.6) {
+                    const bigPickupRadius = BIG_COIN_BASE_RADIUS + BIG_COIN_PICKUP_PADDING + magnetBoost * 0.6;
+                    if (Math.sqrt(dx*dx + dy*dy) < bigPickupRadius) {
                         bigCoins.splice(i, 1);
                         awardCoins(BIG_COIN_VALUE, time, { sourceX: big.x, sourceY: big.y });
                     }
