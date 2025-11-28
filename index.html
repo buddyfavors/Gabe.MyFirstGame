@@ -365,6 +365,23 @@
         // Objects
         let clouds = [];
         let stars = [];
+        let pterodactyls = [];
+        let fighterJets = [];
+        let missiles = [];
+        
+        let coinsCollected = 0;
+        let totalStarsCollected = 0;
+        let currentMultiplier = 1;
+        let jetsActive = false;
+        
+        let lastPterodactyl = 0;
+        let lastFighterJet = 0;
+        const PTERODACTYL_LIMIT = 2;
+        const FIGHTER_JET_LIMIT = 2;
+        
+        function updateScoreDisplay() {
+            document.getElementById('score').textContent = score;
+        }
         
         // Controls
         let up = false, down = false;
@@ -421,12 +438,21 @@
             plane = { x: 120, y: canvas.height / 2, vy: 0 };
             clouds = [];
             stars = [];
-            document.getElementById('score').textContent = '0';
+            pterodactyls = [];
+            fighterJets = [];
+            missiles = [];
+            coinsCollected = 0;
+            totalStarsCollected = 0;
+            jetsActive = false;
+            currentMultiplier = selectedDifficulty + 1;
+            const now = performance.now();
+            lastPterodactyl = now;
+            lastFighterJet = now;
+            updateScoreDisplay();
             
             // Show difficulty and point multiplier
             const diff = difficulties[selectedDifficulty];
-            const multiplier = selectedDifficulty + 1;
-            document.getElementById('diffDisplay').textContent = diff.name + ' (x' + multiplier + ' points)';
+            document.getElementById('diffDisplay').textContent = diff.name + ' (x' + currentMultiplier + ' points)';
             
             document.getElementById('menu').classList.add('hidden');
         };
@@ -470,6 +496,29 @@
                     lastStar = time;
                 }
                 
+                // Spawn pterodactyls that fly toward the plane
+                if (time - lastPterodactyl > 5000 && pterodactyls.length < PTERODACTYL_LIMIT) {
+                    pterodactyls.push({
+                        x: canvas.width + 80,
+                        y: Math.random() * (canvas.height - 140) + 70,
+                        speed: speed + 2 + Math.random() * 1.5,
+                        flapOffset: Math.random() * Math.PI * 2
+                    });
+                    lastPterodactyl = time;
+                }
+                
+                // Spawn fighter jets from behind after enough coins
+                if (jetsActive && time - lastFighterJet > 6000 && fighterJets.length < FIGHTER_JET_LIMIT) {
+                    fighterJets.push({
+                        x: -150,
+                        y: Math.random() * (canvas.height - 100) + 50,
+                        speed: 4 + Math.random() * 1.5,
+                        lastShot: time,
+                        shotInterval: 1800 + Math.random() * 1500
+                    });
+                    lastFighterJet = time;
+                }
+                
                 // Update plane
                 if (up) plane.vy -= 0.5;
                 if (down) plane.vy += 0.5;
@@ -501,6 +550,70 @@
                     if (stars[i].x < -20) stars.splice(i, 1);
                 }
                 
+                // Update pterodactyls and handle collisions
+                for (let i = pterodactyls.length - 1; i >= 0; i--) {
+                    const p = pterodactyls[i];
+                    p.x -= p.speed;
+                    p.y += Math.sin((time / 300) + p.flapOffset) * 1.5;
+                    if (p.x < -150) {
+                        pterodactyls.splice(i, 1);
+                        continue;
+                    }
+                    let dx = plane.x - p.x;
+                    let dy = plane.y - p.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 45) {
+                        const stolen = Math.min(coinsCollected, 3);
+                        if (stolen > 0) {
+                            coinsCollected -= stolen;
+                            score = coinsCollected * 10 * currentMultiplier;
+                            updateScoreDisplay();
+                        }
+                        pterodactyls.splice(i, 1);
+                    }
+                }
+                
+                // Update fighter jets and fire missiles
+                for (let i = fighterJets.length - 1; i >= 0; i--) {
+                    const jet = fighterJets[i];
+                    jet.x += jet.speed;
+                    jet.y += (plane.y - jet.y) * 0.02;
+                    if (jet.x > canvas.width + 200) {
+                        fighterJets.splice(i, 1);
+                        continue;
+                    }
+                    if (jet.x < plane.x && time - jet.lastShot > jet.shotInterval) {
+                        const angle = Math.atan2(plane.y - jet.y, plane.x - jet.x);
+                        missiles.push({
+                            x: jet.x + 30,
+                            y: jet.y,
+                            vx: Math.cos(angle) * 6.5,
+                            vy: Math.sin(angle) * 6.5,
+                            angle: angle
+                        });
+                        jet.lastShot = time;
+                        jet.shotInterval = 1800 + Math.random() * 1500;
+                    }
+                }
+                
+                // Update missiles
+                for (let i = missiles.length - 1; i >= 0; i--) {
+                    const m = missiles[i];
+                    m.x += m.vx;
+                    m.y += m.vy;
+                    if (m.x < -120 || m.x > canvas.width + 120 || m.y < -120 || m.y > canvas.height + 120) {
+                        missiles.splice(i, 1);
+                        continue;
+                    }
+                    let dx = plane.x - m.x;
+                    let dy = plane.y - m.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 25) {
+                        coinsCollected = 0;
+                        score = 0;
+                        updateScoreDisplay();
+                        missiles.splice(i, 1);
+                    }
+                }
+                
                 // Draw clouds with different colors and sizes
                 for (let c of clouds) {
                     const s = c.size || 1;
@@ -528,6 +641,83 @@
                     ctx.beginPath();
                     ctx.arc(s.x, s.y, 12, 0, Math.PI * 2);
                     ctx.fill();
+                }
+                
+                // Draw pterodactyls
+                for (let p of pterodactyls) {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.scale(1.1, 1.1);
+                    ctx.fillStyle = '#8d5524';
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-40, -12);
+                    ctx.lineTo(-40, 12);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#c97f36';
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(15, -8);
+                    ctx.lineTo(15, 8);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#5d3a17';
+                    ctx.beginPath();
+                    ctx.moveTo(-25, -8);
+                    ctx.lineTo(-45, -25);
+                    ctx.lineTo(-5, -2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(-25, 8);
+                    ctx.lineTo(-45, 25);
+                    ctx.lineTo(-5, 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                
+                // Draw fighter jets
+                for (let jet of fighterJets) {
+                    ctx.save();
+                    ctx.translate(jet.x, jet.y);
+                    ctx.fillStyle = '#95a5a6';
+                    ctx.fillRect(-35, -6, 70, 12);
+                    ctx.fillStyle = '#7f8c8d';
+                    ctx.beginPath();
+                    ctx.moveTo(-35, -6);
+                    ctx.lineTo(-55, -18);
+                    ctx.lineTo(-10, -6);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(-35, 6);
+                    ctx.lineTo(-55, 18);
+                    ctx.lineTo(-10, 6);
+                    ctx.fill();
+                    ctx.fillStyle = '#bdc3c7';
+                    ctx.beginPath();
+                    ctx.moveTo(35, -6);
+                    ctx.lineTo(55, 0);
+                    ctx.lineTo(35, 6);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                
+                // Draw missiles
+                for (let m of missiles) {
+                    ctx.save();
+                    ctx.translate(m.x, m.y);
+                    ctx.rotate(m.angle || 0);
+                    ctx.fillStyle = '#ff4136';
+                    ctx.fillRect(-10, -4, 20, 8);
+                    ctx.fillStyle = '#dddddd';
+                    ctx.fillRect(6, -3, 6, 6);
+                    ctx.fillStyle = '#ffa502';
+                    ctx.beginPath();
+                    ctx.moveTo(-10, -4);
+                    ctx.lineTo(-16, 0);
+                    ctx.lineTo(-10, 4);
+                    ctx.fill();
+                    ctx.restore();
                 }
                 
                 // Draw plane with selected skin
@@ -622,15 +812,17 @@
                 }
                 
                 // Collision detection with stars (bonus points for harder difficulties)
-                const pointMultiplier = selectedDifficulty + 1; // Easy=1x, Medium=2x, Hard=3x
                 for (let i = stars.length - 1; i >= 0; i--) {
                     let dx = plane.x - stars[i].x;
                     let dy = plane.y - stars[i].y;
                     if (Math.sqrt(dx*dx + dy*dy) < 30) {
                         stars.splice(i, 1);
-                        score += 10 * pointMultiplier;
-                        document.getElementById('score').textContent = score;
-                        if (score % 50 === 0) speed = Math.min(speed + 0.5, 10);
+                        coinsCollected += 1;
+                        totalStarsCollected += 1;
+                        score = coinsCollected * 10 * currentMultiplier;
+                        updateScoreDisplay();
+                        if (totalStarsCollected % 5 === 0) speed = Math.min(speed + 0.5, 10);
+                        if (!jetsActive && totalStarsCollected >= 20) jetsActive = true;
                     }
                 }
             }
