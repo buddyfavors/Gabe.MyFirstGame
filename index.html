@@ -305,6 +305,21 @@
         const coinDisplay = document.getElementById('coins');
         const coinIcon = document.getElementById('coinIcon');
         const coinGainTag = document.getElementById('coinGainTag');
+        const menu = document.getElementById('menu');
+        const menuTitle = document.getElementById('menuTitle');
+        const menuText = document.getElementById('menuText');
+        const startBtn = document.getElementById('startBtn');
+        const defaultMenuTitle = menuTitle ? menuTitle.textContent : '';
+        const defaultMenuText = menuText ? menuText.innerHTML : '';
+        
+        const JET_ACTIVATION_COIN_THRESHOLD = 10;
+        const JET_SPAWN_INTERVAL = 4000;
+        const JET_BASE_SPEED = 3;
+        const JET_SPEED_VARIANCE = 0.9;
+        const JET_SAFE_DISTANCE = 150;
+        const JET_SONIC_SPEED = 15;
+        const JET_FIRE_INTERVAL_MIN = 900;
+        const JET_FIRE_INTERVAL_MAX = 1400;
         
         function resize() {
             canvas.width = window.innerWidth;
@@ -524,6 +539,10 @@
                 coinGainTag.classList.remove('visible');
             }, 650);
         }
+
+        function randomInRange(min, max) {
+            return min + Math.random() * (max - min);
+        }
         
         function triggerBurstEffect(effect, time) {
             burstEffects.push({
@@ -538,6 +557,23 @@
             if (effect.type !== 'reward') {
                 screenFlashAlpha = 0.45;
             }
+        }
+
+        function startJetEscape(jet, time) {
+            if (jet.evading) return;
+            jet.evading = true;
+            jet.escapeStart = time;
+            jet.speed = JET_SONIC_SPEED;
+            jet.shotInterval = Infinity;
+            jet.lastShot = time;
+            triggerBurstEffect({
+                x: jet.x,
+                y: jet.y,
+                color: '#4ecdc4',
+                textColor: '#d7fff7',
+                label: 'Sonic!',
+                type: 'reward'
+            }, time);
         }
         
         function triggerCoinGainEffect(x, y, amount, time) {
@@ -565,6 +601,25 @@
             }
             const displayLabel = label || (all ? 'All!' : `-${lost || amount}`);
             triggerBurstEffect({ x: plane.x, y: plane.y, color, label: displayLabel, type: 'damage' }, time);
+        }
+
+        function handlePlayerDeath(reason) {
+            if (!playing) return;
+            playing = false;
+            jetsActive = false;
+            missiles = [];
+            fighterJets = [];
+            pterodactyls = [];
+            clouds = [];
+            stars = [];
+            burstEffects = [];
+            screenFlashAlpha = 0;
+            if (menuTitle) menuTitle.textContent = 'Mission Failed';
+            if (menuText) {
+                menuText.innerHTML = `${reason}<br><br>Coins: ${coinsCollected}<br>Score: ${score}`;
+            }
+            if (startBtn) startBtn.textContent = 'Play Again';
+            if (menu) menu.classList.remove('hidden');
         }
         
         // Controls
@@ -616,6 +671,9 @@
 
         // Start button
         document.getElementById('startBtn').onclick = function() {
+            if (menuTitle) menuTitle.textContent = defaultMenuTitle;
+            if (menuText) menuText.innerHTML = defaultMenuText;
+            if (startBtn) startBtn.textContent = 'Play';
             playing = true;
             score = 0;
             speed = 3;
@@ -643,7 +701,7 @@
             const diff = difficulties[selectedDifficulty];
             document.getElementById('diffDisplay').textContent = diff.name + ' (x' + currentMultiplier + ' points)';
             
-            document.getElementById('menu').classList.add('hidden');
+            if (menu) menu.classList.add('hidden');
         };
 
         // Spawn timers
@@ -697,13 +755,16 @@
                 }
                 
                 // Spawn fighter jets from behind after enough coins
-                if (jetsActive && time - lastFighterJet > 6000 && fighterJets.length < FIGHTER_JET_LIMIT) {
+                if (jetsActive && time - lastFighterJet > JET_SPAWN_INTERVAL && fighterJets.length < FIGHTER_JET_LIMIT) {
+                    const shotInterval = randomInRange(JET_FIRE_INTERVAL_MIN, JET_FIRE_INTERVAL_MAX);
                     fighterJets.push({
                         x: -150,
                         y: Math.random() * (canvas.height - 100) + 50,
-                        speed: 4 + Math.random() * 1.5,
-                        lastShot: time,
-                        shotInterval: 1800 + Math.random() * 1500
+                        speed: JET_BASE_SPEED + Math.random() * JET_SPEED_VARIANCE,
+                        lastShot: time - shotInterval,
+                        shotInterval,
+                        evading: false,
+                        escapeStart: 0
                     });
                     lastFighterJet = time;
                 }
@@ -760,22 +821,34 @@
                 for (let i = fighterJets.length - 1; i >= 0; i--) {
                     const jet = fighterJets[i];
                     jet.x += jet.speed;
-                    jet.y += (plane.y - jet.y) * 0.02;
-                    if (jet.x > canvas.width + 200) {
+                    const followStrength = jet.evading ? 0.005 : 0.02;
+                    jet.y += (plane.y - jet.y) * followStrength;
+                    const distanceToPlane = Math.hypot(plane.x - jet.x, plane.y - jet.y);
+                    
+                    if (!jet.evading && distanceToPlane < JET_SAFE_DISTANCE) {
+                        startJetEscape(jet, time);
+                    }
+                    
+                    if (jet.x > canvas.width + 220) {
                         fighterJets.splice(i, 1);
                         continue;
                     }
-                    if (jet.x < plane.x && time - jet.lastShot > jet.shotInterval) {
-                        const angle = Math.atan2(plane.y - jet.y, plane.x - jet.x);
-                        missiles.push({
-                            x: jet.x + 30,
-                            y: jet.y,
-                            vx: Math.cos(angle) * 6.5,
-                            vy: Math.sin(angle) * 6.5,
-                            angle: angle
-                        });
-                        jet.lastShot = time;
-                        jet.shotInterval = 1800 + Math.random() * 1500;
+                    
+                    if (!jet.evading && jet.x < plane.x + 40 && time - jet.lastShot >= jet.shotInterval) {
+                        if (distanceToPlane >= JET_SAFE_DISTANCE) {
+                            const angle = Math.atan2(plane.y - jet.y, plane.x - jet.x);
+                            missiles.push({
+                                x: jet.x + 30,
+                                y: jet.y,
+                                vx: Math.cos(angle) * 6.5,
+                                vy: Math.sin(angle) * 6.5,
+                                angle: angle
+                            });
+                            jet.lastShot = time;
+                            jet.shotInterval = randomInRange(JET_FIRE_INTERVAL_MIN, JET_FIRE_INTERVAL_MAX);
+                        } else {
+                            startJetEscape(jet, time);
+                        }
                     }
                 }
                 
@@ -791,8 +864,9 @@
                     let dx = plane.x - m.x;
                     let dy = plane.y - m.y;
                     if (Math.sqrt(dx*dx + dy*dy) < 25) {
-                        applyCoinDamage({ all: true, color: '#ff4757', label: 'Zap!' }, time);
                         missiles.splice(i, 1);
+                        handlePlayerDeath('A fighter jet missile hit you!');
+                        break;
                     }
                 }
                 
@@ -920,6 +994,20 @@
                 for (let jet of fighterJets) {
                     ctx.save();
                     ctx.translate(jet.x, jet.y);
+                    if (jet.evading) {
+                        const progress = jet.escapeStart ? Math.min((time - jet.escapeStart) / 600, 1) : 0;
+                        const trailGradient = ctx.createLinearGradient(-130, 0, -5, 0);
+                        trailGradient.addColorStop(0, 'rgba(148, 255, 255, 0)');
+                        trailGradient.addColorStop(1, 'rgba(148, 255, 255,' + (0.5 + 0.3 * (1 - progress)) + ')');
+                        ctx.fillStyle = trailGradient;
+                        ctx.beginPath();
+                        ctx.moveTo(-130, -18);
+                        ctx.lineTo(-15, -6);
+                        ctx.lineTo(-15, 6);
+                        ctx.lineTo(-130, 18);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
                     ctx.fillStyle = '#95a5a6';
                     ctx.fillRect(-35, -6, 70, 12);
                     ctx.fillStyle = '#7f8c8d';
@@ -1062,7 +1150,10 @@
                         pulseCoinIcon();
                         showCoinGainTag('+1');
                         if (totalStarsCollected % 5 === 0) speed = Math.min(speed + 0.5, 10);
-                        if (!jetsActive && totalStarsCollected >= 20) jetsActive = true;
+                        if (!jetsActive && totalStarsCollected >= JET_ACTIVATION_COIN_THRESHOLD) {
+                            jetsActive = true;
+                            lastFighterJet = time - JET_SPAWN_INTERVAL;
+                        }
                     }
                 }
             }
