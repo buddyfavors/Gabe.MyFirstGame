@@ -202,6 +202,19 @@
             font-size: 64px;
             margin: 20px 0;
         }
+        .version-pill {
+            margin-top: 5px;
+            margin-bottom: 25px;
+            padding: 6px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(168, 218, 220, 0.35);
+            color: #a8dadc;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-size: 13px;
+            background: rgba(26, 26, 46, 0.6);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
         #difficultySelector {
             margin: 15px 0;
             width: 100%;
@@ -296,6 +309,7 @@
     
     <div id="menu">
         <h1 id="menuTitle">Sky Drifter</h1>
+        <div id="versionTag" class="version-pill" role="status" aria-live="polite">Loading version...</div>
         <p id="menuText">Move mouse, touch screen, or use ↑↓ keys to fly.<br>Collect glowing coins and avoid clouds!</p>
         
         <div id="difficultySelector">
@@ -325,8 +339,40 @@
         const menuTitle = document.getElementById('menuTitle');
         const menuText = document.getElementById('menuText');
         const startBtn = document.getElementById('startBtn');
+        const versionTag = document.getElementById('versionTag');
         const defaultMenuTitle = menuTitle ? menuTitle.textContent : '';
         const defaultMenuText = menuText ? menuText.innerHTML : '';
+        const VERSION_SOURCE = 'version.json';
+        const VERSION_FALLBACK_TEXT = 'Version unavailable';
+        
+        function updateVersionTag(text) {
+            if (versionTag) {
+                versionTag.textContent = text;
+            }
+        }
+        
+        function loadVersionInfo() {
+            if (!versionTag) return;
+            if (typeof window.fetch !== 'function') {
+                updateVersionTag(VERSION_FALLBACK_TEXT);
+                return;
+            }
+            fetch(VERSION_SOURCE, { cache: 'no-store' })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Version file missing');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const versionLabel = (data && data.version) ? `Version ${data.version}` : VERSION_FALLBACK_TEXT;
+                    updateVersionTag(versionLabel);
+                })
+                .catch(() => {
+                    updateVersionTag(VERSION_FALLBACK_TEXT);
+                });
+        }
+        loadVersionInfo();
         
         const JET_ACTIVATION_COIN_THRESHOLD = 10;
         const JET_SPAWN_INTERVAL = 4000;
