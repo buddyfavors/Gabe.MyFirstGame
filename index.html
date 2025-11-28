@@ -118,6 +118,110 @@
             min-height: 18px;
             letter-spacing: 0.5px;
         }
+        .status-line {
+            font-size: 13px;
+            color: #9fd9ff;
+            min-height: 17px;
+            letter-spacing: 0.4px;
+        }
+        .status-line.alert { color: #ffb347; }
+        .status-line.success { color: #4ecdc4; }
+        #hangarPanel {
+            width: 100%;
+            max-width: 760px;
+            margin: 10px auto 30px;
+            background: rgba(10, 15, 30, 0.7);
+            border: 1px solid rgba(78, 205, 196, 0.2);
+            border-radius: 16px;
+            padding: 20px 24px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+        }
+        .hangar-header {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .hangar-header h2 {
+            color: #4ecdc4;
+            font-size: 26px;
+            margin: 0;
+        }
+        #bankDisplay {
+            color: #ffeaa7;
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 0.04em;
+        }
+        .hangar-note {
+            color: #9baed1;
+            font-size: 14px;
+            margin-bottom: 14px;
+            text-align: left;
+        }
+        #upgradeGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            width: 100%;
+        }
+        .upgrade-card {
+            background: rgba(20, 28, 50, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .upgrade-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 14px;
+            border: 1px solid rgba(78, 205, 196, 0.18);
+            pointer-events: none;
+        }
+        .upgrade-card.maxed::after {
+            border-color: rgba(255, 215, 0, 0.35);
+        }
+        .upgrade-title {
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .upgrade-level {
+            color: #a8dadc;
+            font-size: 14px;
+        }
+        .upgrade-desc {
+            color: #ced6f0;
+            font-size: 14px;
+            flex: 1;
+        }
+        .upgrade-card button {
+            margin-top: 4px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: none;
+            background: linear-gradient(120deg, #4ecdc4, #1dd1a1);
+            color: #051019;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .upgrade-card button:disabled {
+            background: rgba(255, 255, 255, 0.15);
+            color: #d7d7d7;
+            cursor: not-allowed;
+        }
+        .upgrade-card button:not(:disabled):hover {
+            opacity: 0.85;
+            transform: translateY(-2px);
+        }
         
         @media (max-width: 600px) {
             #ui {
@@ -305,6 +409,9 @@
         <div id="diffDisplay" style="font-size: 14px; margin-top: 5px; opacity: 0.7;"></div>
         <div id="shieldStatus"></div>
         <div id="boostStatus"></div>
+        <div id="weatherStatus" class="status-line"></div>
+        <div id="comboStatus" class="status-line"></div>
+        <div id="upgradeStatus" class="status-line"></div>
     </div>
     
     <div id="menu">
@@ -322,6 +429,15 @@
             <div id="skins"></div>
         </div>
         
+        <div id="hangarPanel">
+            <div class="hangar-header">
+                <h2>Hangar Upgrades</h2>
+                <div id="bankDisplay">Bank: 0</div>
+            </div>
+            <p class="hangar-note">Coins earned per run are deposited automatically when missions end.</p>
+            <div id="upgradeGrid"></div>
+        </div>
+        
         <button id="startBtn">Play</button>
     </div>
 
@@ -335,11 +451,16 @@
         const coinGainTag = document.getElementById('coinGainTag');
         const shieldStatus = document.getElementById('shieldStatus');
         const boostStatus = document.getElementById('boostStatus');
+        const weatherStatus = document.getElementById('weatherStatus');
+        const comboStatus = document.getElementById('comboStatus');
+        const upgradeStatus = document.getElementById('upgradeStatus');
         const menu = document.getElementById('menu');
         const menuTitle = document.getElementById('menuTitle');
         const menuText = document.getElementById('menuText');
         const startBtn = document.getElementById('startBtn');
         const versionTag = document.getElementById('versionTag');
+        const bankDisplay = document.getElementById('bankDisplay');
+        const upgradeGrid = document.getElementById('upgradeGrid');
         const defaultMenuTitle = menuTitle ? menuTitle.textContent : '';
         const defaultMenuText = menuText ? menuText.innerHTML : '';
         const VERSION_SOURCE = 'version.json';
@@ -373,6 +494,265 @@
                 });
         }
         loadVersionInfo();
+        
+        function setStatusLine(el, text, mode) {
+            if (!el) return;
+            el.textContent = text || '';
+            el.classList.remove('alert', 'success');
+            if (mode) {
+                el.classList.add(mode);
+            }
+        }
+        function setWeatherStatusLine(text, mode) {
+            setStatusLine(weatherStatus, text, mode);
+        }
+        function setComboStatusLine(text, mode) {
+            setStatusLine(comboStatus, text, mode);
+        }
+        function setUpgradeStatusLine(text, mode) {
+            setStatusLine(upgradeStatus, text, mode);
+        }
+        setWeatherStatusLine('Skies clear');
+        setComboStatusLine('');
+        setUpgradeStatusLine('');
+        
+        const HANGAR_STORAGE_KEY = 'sky_drifter_hangar_v1';
+        const DEFAULT_HANGAR_STATE = {
+            bank: 0,
+            upgrades: {
+                engine: 0,
+                magnet: 0,
+                stability: 0,
+                combo: 0
+            }
+        };
+        const UPGRADE_BLUEPRINTS = [
+            {
+                id: 'engine',
+                icon: '⚡',
+                name: 'Pulse Engines',
+                description: 'Higher base airspeed and faster gauntlet recovery.',
+                maxLevel: 4,
+                baseCost: 35,
+                costGrowth: 25
+            },
+            {
+                id: 'magnet',
+                icon: '🧲',
+                name: 'Coin Magnet',
+                description: 'Extends coin & combo pickup range.',
+                maxLevel: 4,
+                baseCost: 30,
+                costGrowth: 20
+            },
+            {
+                id: 'stability',
+                icon: '🌀',
+                name: 'Stability Foils',
+                description: 'Reduces weather turbulence on the plane.',
+                maxLevel: 3,
+                baseCost: 40,
+                costGrowth: 35
+            },
+            {
+                id: 'combo',
+                icon: '🎯',
+                name: 'Combo Computer',
+                description: 'Boosts combo-route payouts.',
+                maxLevel: 3,
+                baseCost: 50,
+                costGrowth: 35
+            }
+        ];
+        
+        function cloneDefaultHangar() {
+            return JSON.parse(JSON.stringify(DEFAULT_HANGAR_STATE));
+        }
+        function loadHangarState() {
+            const defaults = cloneDefaultHangar();
+            if (typeof window === 'undefined' || !window.localStorage) {
+                return defaults;
+            }
+            try {
+                const raw = window.localStorage.getItem(HANGAR_STORAGE_KEY);
+                if (!raw) return defaults;
+                const parsed = JSON.parse(raw);
+                return {
+                    bank: Math.max(0, parsed.bank || 0),
+                    upgrades: Object.assign({}, defaults.upgrades, parsed.upgrades || {})
+                };
+            } catch (err) {
+                return defaults;
+            }
+        }
+        function saveHangarState() {
+            if (typeof window === 'undefined' || !window.localStorage) return;
+            try {
+                window.localStorage.setItem(HANGAR_STORAGE_KEY, JSON.stringify(hangarState));
+            } catch (err) {
+                // Ignore persistence issues
+            }
+        }
+        
+        let hangarState = loadHangarState();
+        let lastRunCoins = 0;
+        let lastRunScore = 0;
+        let upgradeEffects = {
+            engineSpeed: 0,
+            magnetRadius: 0,
+            stabilityMitigation: 0,
+            comboBonusMultiplier: 0
+        };
+        
+        function recomputeUpgradeEffects() {
+            const engineLevel = hangarState.upgrades.engine || 0;
+            const magnetLevel = hangarState.upgrades.magnet || 0;
+            const stabilityLevel = hangarState.upgrades.stability || 0;
+            const comboLevel = hangarState.upgrades.combo || 0;
+            upgradeEffects.engineSpeed = engineLevel * 0.45;
+            upgradeEffects.magnetRadius = magnetLevel * 4;
+            upgradeEffects.stabilityMitigation = Math.min(0.6, stabilityLevel * 0.18);
+            upgradeEffects.comboBonusMultiplier = comboLevel * 0.35;
+        }
+        recomputeUpgradeEffects();
+        
+        function updateBankDisplay() {
+            if (bankDisplay) {
+                bankDisplay.textContent = 'Bank: ' + hangarState.bank;
+            }
+        }
+        updateBankDisplay();
+        
+        function getUpgradeCost(blueprint, level) {
+            return blueprint.baseCost + level * blueprint.costGrowth;
+        }
+        
+        function renderHangarUI() {
+            if (!upgradeGrid) return;
+            upgradeGrid.innerHTML = '';
+            UPGRADE_BLUEPRINTS.forEach(blueprint => {
+                const level = hangarState.upgrades[blueprint.id] || 0;
+                const maxed = level >= blueprint.maxLevel;
+                const cost = maxed ? 0 : getUpgradeCost(blueprint, level);
+                const card = document.createElement('div');
+                card.className = 'upgrade-card' + (maxed ? ' maxed' : '');
+                
+                const title = document.createElement('div');
+                title.className = 'upgrade-title';
+                title.textContent = `${blueprint.icon} ${blueprint.name}`;
+                card.appendChild(title);
+                
+                const levelLine = document.createElement('div');
+                levelLine.className = 'upgrade-level';
+                levelLine.textContent = `Lv ${level}/${blueprint.maxLevel}`;
+                card.appendChild(levelLine);
+                
+                const desc = document.createElement('p');
+                desc.className = 'upgrade-desc';
+                desc.textContent = blueprint.description;
+                card.appendChild(desc);
+                
+                const btn = document.createElement('button');
+                btn.textContent = maxed ? 'Maxed' : `Upgrade (${cost})`;
+                btn.disabled = maxed || hangarState.bank < cost;
+                btn.addEventListener('click', () => purchaseUpgrade(blueprint.id));
+                card.appendChild(btn);
+                
+                upgradeGrid.appendChild(card);
+            });
+        }
+        renderHangarUI();
+        setUpgradeStatusLine(hangarState.bank ? `Bank ${hangarState.bank} coins ready` : 'Bank empty - earn coins in flight', hangarState.bank ? 'success' : undefined);
+        
+        function purchaseUpgrade(id) {
+            const blueprint = UPGRADE_BLUEPRINTS.find(item => item.id === id);
+            if (!blueprint) return;
+            const currentLevel = hangarState.upgrades[id] || 0;
+            if (currentLevel >= blueprint.maxLevel) {
+                setUpgradeStatusLine(`${blueprint.name} already maxed.`, 'alert');
+                return;
+            }
+            const cost = getUpgradeCost(blueprint, currentLevel);
+            if (hangarState.bank < cost) {
+                setUpgradeStatusLine('Need more banked coins.', 'alert');
+                return;
+            }
+            hangarState.bank -= cost;
+            hangarState.upgrades[id] = currentLevel + 1;
+            saveHangarState();
+            recomputeUpgradeEffects();
+            updateBankDisplay();
+            renderHangarUI();
+            setUpgradeStatusLine(`${blueprint.name} Lv ${currentLevel + 1} equipped`, 'success');
+        }
+        
+        function finalizeRunRewards() {
+            const payout = coinsCollected;
+            const finalScore = score;
+            lastRunCoins = payout;
+            lastRunScore = finalScore;
+            if (payout > 0) {
+                hangarState.bank += payout;
+                saveHangarState();
+                updateBankDisplay();
+                renderHangarUI();
+                setUpgradeStatusLine(`Deposited ${payout} coins`, 'success');
+            }
+            coinsCollected = 0;
+            updateCoinDisplay();
+            return { coins: payout, score: finalScore };
+        }
+        
+        const WEATHER_EVENTS = [
+            {
+                id: 'tempest',
+                label: 'Tempest Gauntlet',
+                duration: 9000,
+                worldSpeedScale: 0.9,
+                controlSensitivity: 0.85,
+                verticalForce: 0.38,
+                verticalFrequency: 0.005,
+                overlay: 'rgba(25, 35, 78, 0.45)',
+                rewardBonus: 2
+            },
+            {
+                id: 'solar',
+                label: 'Solar Flare Corridor',
+                duration: 8000,
+                worldSpeedScale: 1.15,
+                controlSensitivity: 1.05,
+                verticalForce: 0,
+                overlay: 'rgba(255, 196, 0, 0.18)',
+                rewardBonus: 3,
+                coinBonus: 0.25
+            },
+            {
+                id: 'gust',
+                label: 'Gale Tunnel',
+                duration: 9500,
+                worldSpeedScale: 1,
+                controlSensitivity: 0.9,
+                verticalForce: 0.25,
+                verticalFrequency: 0.0075,
+                overlay: 'rgba(120, 200, 255, 0.22)',
+                sway: 25,
+                rewardBonus: 2
+            }
+        ];
+        const WEATHER_INTERVAL_MIN = 16000;
+        const WEATHER_INTERVAL_MAX = 26000;
+        let activeWeather = null;
+        let nextWeatherAt = 0;
+        let weatherCountdownStarted = false;
+        
+        const COMBO_ROUTE_INTERVAL_MIN = 14000;
+        const COMBO_ROUTE_INTERVAL_MAX = 22000;
+        const COMBO_CHAIN_TIMEOUT = 1500;
+        let comboRoute = null;
+        let comboProgress = 0;
+        let comboTier = 0;
+        let nextComboAt = 0;
+        let comboChainExpire = 0;
         
         const JET_ACTIVATION_COIN_THRESHOLD = 10;
         const JET_SPAWN_INTERVAL = 4000;
@@ -643,25 +1023,31 @@
 
         function awardCoins(amount, time, options = {}) {
             if (amount <= 0) return;
+            const skipWeatherBonus = options.skipWeatherBonus;
+            const weatherBonus = (!skipWeatherBonus && activeWeather && activeWeather.coinBonus)
+                ? Math.max(1, Math.round(amount * activeWeather.coinBonus))
+                : 0;
+            const totalAward = amount + weatherBonus;
             const prevTotal = totalStarsCollected;
-            coinsCollected += amount;
-            totalStarsCollected += amount;
+            coinsCollected += totalAward;
+            totalStarsCollected += totalAward;
             score = coinsCollected * 10 * currentMultiplier;
             triggerCoinGainEffect(
                 options.sourceX !== undefined ? options.sourceX : plane.x,
                 options.sourceY !== undefined ? options.sourceY : plane.y,
-                amount * 10 * currentMultiplier,
+                totalAward * 10 * currentMultiplier,
                 time
             );
             updateScoreDisplay();
             updateCoinDisplay();
             pulseCoinIcon();
-            showCoinGainTag(options.coinTagText || ('+' + amount));
+            showCoinGainTag(options.coinTagText || ('+' + totalAward));
             const prevSteps = Math.floor(prevTotal / 5);
             const currentSteps = Math.floor(totalStarsCollected / 5);
             const gainedSteps = currentSteps - prevSteps;
             if (gainedSteps > 0) {
-                speed = Math.min(speed + 0.5 * gainedSteps, 10);
+                const maxSpeed = 10 + upgradeEffects.engineSpeed;
+                speed = Math.min(speed + 0.5 * gainedSteps, maxSpeed);
             }
         }
 
@@ -788,6 +1174,196 @@
             return min + Math.random() * (max - min);
         }
         
+        function randomWeatherDelay() {
+            return WEATHER_INTERVAL_MIN + Math.random() * (WEATHER_INTERVAL_MAX - WEATHER_INTERVAL_MIN);
+        }
+        function scheduleNextWeather(time) {
+            nextWeatherAt = time + randomWeatherDelay();
+            weatherCountdownStarted = true;
+        }
+        function startWeatherEvent(time) {
+            const blueprint = WEATHER_EVENTS[Math.floor(Math.random() * WEATHER_EVENTS.length)];
+            const turbulenceScale = Math.max(0.25, 1 - upgradeEffects.stabilityMitigation);
+            const adjustedControl = blueprint.controlSensitivity + (1 - blueprint.controlSensitivity) * upgradeEffects.stabilityMitigation;
+            activeWeather = Object.assign({}, blueprint, {
+                startedAt: time,
+                endsAt: time + blueprint.duration,
+                controlSensitivity: adjustedControl,
+                verticalForce: (blueprint.verticalForce || 0) * turbulenceScale
+            });
+            setWeatherStatusLine(`${blueprint.label}!`, 'alert');
+        }
+        function endWeatherEvent(time) {
+            if (!activeWeather) return;
+            const reward = Math.max(1, (activeWeather.rewardBonus || 1) + selectedDifficulty);
+            const label = activeWeather.label;
+            const stillPlaying = playing;
+            activeWeather = null;
+            if (stillPlaying) {
+                awardCoins(reward, time, { coinTagText: `+${reward} ${label}`, skipWeatherBonus: true });
+            }
+            setWeatherStatusLine('Skies clear', 'success');
+            scheduleNextWeather(time);
+        }
+        
+        function ensureWeatherTimeline(time) {
+            if (!playing) return;
+            if (!weatherCountdownStarted) {
+                scheduleNextWeather(time);
+            }
+            if (!activeWeather && time >= nextWeatherAt) {
+                startWeatherEvent(time);
+            } else if (activeWeather && time >= activeWeather.endsAt) {
+                endWeatherEvent(time);
+            }
+        }
+        
+        function comboIntervalDelay() {
+            return COMBO_ROUTE_INTERVAL_MIN + Math.random() * (COMBO_ROUTE_INTERVAL_MAX - COMBO_ROUTE_INTERVAL_MIN);
+        }
+        function resetComboTimeline(time) {
+            comboRoute = null;
+            comboProgress = 0;
+            comboChainExpire = 0;
+            nextComboAt = time + comboIntervalDelay();
+            setComboStatusLine('Route calibrating', '');
+        }
+        function spawnComboRoute(time) {
+            const count = 4 + selectedDifficulty;
+            const spacing = Math.max(120, canvas.width / (count + 2));
+            const baseY = randomInRange(100, canvas.height - 120);
+            const nodes = [];
+            for (let i = 0; i < count; i++) {
+                nodes.push({
+                    x: canvas.width + 80 + i * spacing,
+                    y: Math.min(canvas.height - 80, Math.max(80, baseY + Math.sin(i * 0.8) * 90)),
+                    collected: false
+                });
+            }
+            comboRoute = {
+                nodes,
+                startedAt: time,
+                expiresAt: time + 9000,
+                highlightSeed: Math.random() * Math.PI
+            };
+            comboProgress = 0;
+            comboChainExpire = comboRoute.expiresAt;
+            nextComboAt = Number.POSITIVE_INFINITY;
+            setComboStatusLine(`Combo route online (${count} nodes)`, 'alert');
+        }
+        function updateComboRoutePositions(worldSpeed, time) {
+            if (!comboRoute) return;
+            const moveSpeed = worldSpeed + 1.8;
+            let offscreen = 0;
+            comboRoute.nodes.forEach(node => {
+                node.x -= moveSpeed;
+                if (node.x < -120) {
+                    offscreen++;
+                }
+            });
+            if (offscreen > 0 && comboProgress < comboRoute.nodes.length) {
+                failComboRoute('Route lost', time);
+            }
+        }
+        function completeComboRoute(time) {
+            if (!comboRoute) return;
+            comboTier = Math.min(comboTier + 1, 5);
+            const baseReward = comboRoute.nodes.length + comboTier * 2;
+            const bonus = Math.round(baseReward * upgradeEffects.comboBonusMultiplier);
+            const payout = baseReward + bonus;
+            setComboStatusLine(`Combo x${comboTier}!`, 'success');
+            comboRoute = null;
+            comboProgress = 0;
+            comboChainExpire = 0;
+            nextComboAt = time + comboIntervalDelay();
+            awardCoins(payout, time, { coinTagText: `+${payout} combo`, skipWeatherBonus: true });
+        }
+        function failComboRoute(reason, time) {
+            comboRoute = null;
+            comboProgress = 0;
+            comboChainExpire = 0;
+            comboTier = Math.max(0, comboTier - 1);
+            setComboStatusLine(reason || 'Combo dropped', 'alert');
+            const failTime = time || performance.now();
+            nextComboAt = failTime + comboIntervalDelay();
+        }
+        function drawComboRoute(ctx, time) {
+            if (!comboRoute) return;
+            ctx.save();
+            ctx.globalAlpha = 0.45;
+            ctx.strokeStyle = 'rgba(255, 200, 92, 0.55)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            comboRoute.nodes.forEach((node, idx) => {
+                if (idx === 0) {
+                    ctx.moveTo(node.x, node.y);
+                } else {
+                    ctx.lineTo(node.x, node.y);
+                }
+            });
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            comboRoute.nodes.forEach((node, idx) => {
+                ctx.save();
+                ctx.translate(node.x, node.y);
+                const pulse = 1 + Math.sin((time / 220) + idx + (comboRoute.highlightSeed || 0)) * 0.12;
+                const radius = (node.collected ? 12 : 18) + upgradeEffects.magnetRadius * 0.25;
+                ctx.beginPath();
+                ctx.lineWidth = node.collected ? 1.5 : 3;
+                ctx.strokeStyle = node.collected ? 'rgba(255,255,255,0.4)' : 'rgba(255, 196, 77, 0.9)';
+                ctx.fillStyle = node.collected ? 'rgba(255,255,255,0.18)' : 'rgba(255, 220, 120, 0.7)';
+                ctx.scale(pulse, pulse);
+                ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                if (idx === comboProgress && !node.collected) {
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius + 6, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            });
+        }
+        function drawWeatherOverlay(ctx, time) {
+            if (!activeWeather) return;
+            ctx.save();
+            const overlay = activeWeather.overlay || 'rgba(0, 0, 0, 0.18)';
+            ctx.fillStyle = overlay;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (activeWeather.id === 'tempest') {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 2; i++) {
+                    if (Math.random() < 0.05) {
+                        const startX = Math.random() * canvas.width;
+                        ctx.beginPath();
+                        ctx.moveTo(startX, 0);
+                        ctx.lineTo(startX + randomInRange(-40, 40), randomInRange(60, 160));
+                        ctx.lineTo(startX + randomInRange(-80, 80), randomInRange(200, 320));
+                        ctx.stroke();
+                    }
+                }
+            } else if (activeWeather.id === 'gust') {
+                ctx.strokeStyle = 'rgba(180, 220, 255, 0.25)';
+                ctx.lineWidth = 1.5;
+                for (let y = 0; y < canvas.height; y += 40) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y + Math.sin((time / 600) + y) * 12);
+                    ctx.lineTo(canvas.width, y + Math.cos((time / 500) + y) * 12);
+                    ctx.stroke();
+                }
+            } else if (activeWeather.id === 'solar') {
+                const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width);
+                gradient.addColorStop(0, 'rgba(255, 240, 200, 0.25)');
+                gradient.addColorStop(1, 'rgba(255, 165, 0, 0)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            ctx.restore();
+        }
+        
         function triggerBurstEffect(effect, time) {
             burstEffects.push({
                 x: effect.x,
@@ -881,10 +1457,20 @@
             burstEffects = [];
             screenFlashAlpha = 0;
             deactivateShield();
-            resetSpeedBoostState(performance.now());
+            const now = performance.now();
+            resetSpeedBoostState(now);
+            const runResults = finalizeRunRewards();
+            activeWeather = null;
+            weatherCountdownStarted = false;
+            setWeatherStatusLine('Skies clear');
+            comboRoute = null;
+            comboProgress = 0;
+            comboChainExpire = 0;
+            nextComboAt = Number.POSITIVE_INFINITY;
+            setComboStatusLine('');
             if (menuTitle) menuTitle.textContent = 'Mission Failed';
             if (menuText) {
-                menuText.innerHTML = `${reason}<br><br>Coins: ${coinsCollected}<br>Score: ${score}`;
+                menuText.innerHTML = `${reason}<br><br>Coins: ${runResults.coins}<br>Score: ${runResults.score}`;
             }
             if (startBtn) startBtn.textContent = 'Play Again';
             if (menu) menu.classList.remove('hidden');
@@ -949,7 +1535,7 @@
             if (startBtn) startBtn.textContent = 'Play';
             playing = true;
             score = 0;
-            speed = 3;
+            speed = 3 + upgradeEffects.engineSpeed;
             resetPlanePosition();
             clouds = [];
             stars = [];
@@ -975,6 +1561,13 @@
             lastBigCoin = now;
             lastPowerup = now;
             jetActivationStart = now;
+            activeWeather = null;
+            weatherCountdownStarted = false;
+            scheduleNextWeather(now);
+            comboTier = 0;
+            resetComboTimeline(now);
+            setWeatherStatusLine('Skies clear');
+            setUpgradeStatusLine(`Bank ${hangarState.bank} coins ready`, 'success');
             updateScoreDisplay();
             updateBoostStatus(now);
             
@@ -999,6 +1592,7 @@
             updateBoostStatus(time);
             
             if (playing) {
+                ensureWeatherTimeline(time);
                 if (shieldActive) {
                     const remaining = Math.max(shieldExpiresAt - time, 0);
                     if (remaining <= 0) {
@@ -1017,7 +1611,21 @@
                 const fighterJetLimit = diff.fighterJetLimit || FIGHTER_JET_LIMIT;
                 const jetActivationDelay = (diff.jetActivationDelay !== undefined) ? diff.jetActivationDelay : null;
                 const jetActivationCoinThreshold = (diff.jetActivationCoinThreshold !== undefined) ? diff.jetActivationCoinThreshold : JET_ACTIVATION_COIN_THRESHOLD;
-                const worldSpeed = speedBoostActive ? speed * SPEED_BOOST_MULTIPLIER : speed;
+                const weatherSpeedScale = activeWeather ? activeWeather.worldSpeedScale : 1;
+                const worldSpeed = (speedBoostActive ? speed * SPEED_BOOST_MULTIPLIER : speed) * weatherSpeedScale;
+                const magnetBoost = upgradeEffects.magnetRadius;
+
+                if (!comboRoute && time >= nextComboAt) {
+                    spawnComboRoute(time);
+                } else if (comboRoute && time >= comboRoute.expiresAt) {
+                    failComboRoute('Route expired', time);
+                }
+                updateComboRoutePositions(worldSpeed, time);
+                if (comboRoute && comboChainExpire && time >= comboChainExpire) {
+                    failComboRoute('Combo window missed', time);
+                }
+
+                const controlFactor = activeWeather ? activeWeather.controlSensitivity : 1;
 
                 if (!jetsActive) {
                     const delayElapsed = jetActivationDelay !== null && (time - jetActivationStart) >= jetActivationDelay;
@@ -1108,19 +1716,26 @@
                 }
                 
                 // Update plane
-                if (up) plane.vy -= 0.5;
-                if (down) plane.vy += 0.5;
+                if (up) plane.vy -= 0.5 * controlFactor;
+                if (down) plane.vy += 0.5 * controlFactor;
                 
                 // Mouse/touch control - plane follows finger/cursor
                 if (targetY !== null && !up && !down) {
                     let diff = targetY - plane.y;
-                    plane.vy += diff * 0.05;
+                    plane.vy += diff * 0.05 * controlFactor;
                 }
                 
                 plane.vy += 0.15; // gravity (reduced)
                 plane.vy *= 0.92; // drag
+                if (activeWeather && activeWeather.verticalForce) {
+                    const freq = activeWeather.verticalFrequency || 0.004;
+                    plane.vy += Math.sin((time - activeWeather.startedAt) * freq) * activeWeather.verticalForce;
+                }
                 plane.vy = Math.max(-12, Math.min(12, plane.vy)); // limit speed
                 plane.y += plane.vy;
+                if (activeWeather && activeWeather.sway) {
+                    plane.y += Math.sin(time / 600) * (activeWeather.sway * 0.02);
+                }
                 
                 // Bounds
                 if (plane.y < 30) { plane.y = 30; plane.vy = 0; }
@@ -1346,6 +1961,8 @@
                     ctx.restore();
                 }
                 
+                drawComboRoute(ctx, time);
+                
                 // Draw pterodactyls
                 for (let p of pterodactyls) {
                     ctx.save();
@@ -1569,12 +2186,43 @@
                     }
                 }
                 
+                if (comboRoute) {
+                    const comboPickupRadius = 24 + magnetBoost;
+                    let broke = false;
+                    for (let i = 0; i < comboRoute.nodes.length; i++) {
+                        const node = comboRoute.nodes[i];
+                        if (node.collected) continue;
+                        const dx = plane.x - node.x;
+                        const dy = plane.y - node.y;
+                        if (Math.hypot(dx, dy) < comboPickupRadius) {
+                            if (i === comboProgress) {
+                                node.collected = true;
+                                comboProgress++;
+                                comboChainExpire = time + COMBO_CHAIN_TIMEOUT;
+                                awardCoins(1, time, { coinTagText: '+1 route', skipWeatherBonus: true, sourceX: node.x, sourceY: node.y });
+                                if (comboProgress >= comboRoute.nodes.length) {
+                                    completeComboRoute(time);
+                                } else {
+                                    setComboStatusLine(`Combo ${comboProgress}/${comboRoute.nodes.length}`, 'alert');
+                                }
+                            } else {
+                                failComboRoute('Wrong order', time);
+                            }
+                            broke = true;
+                            break;
+                        }
+                    }
+                    if (broke && !comboRoute) {
+                        comboChainExpire = 0;
+                    }
+                }
+                
                 // Collision detection with stars (bonus points for harder difficulties)
                 for (let i = stars.length - 1; i >= 0; i--) {
                     const star = stars[i];
                     let dx = plane.x - star.x;
                     let dy = plane.y - star.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < 30) {
+                    if (Math.sqrt(dx*dx + dy*dy) < 30 + magnetBoost) {
                         stars.splice(i, 1);
                         awardCoins(1, time, { sourceX: star.x, sourceY: star.y });
                     }
@@ -1585,7 +2233,7 @@
                     const big = bigCoins[i];
                     let dx = plane.x - big.x;
                     let dy = plane.y - big.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < 40) {
+                    if (Math.sqrt(dx*dx + dy*dy) < 40 + magnetBoost * 0.6) {
                         bigCoins.splice(i, 1);
                         awardCoins(BIG_COIN_VALUE, time, { sourceX: big.x, sourceY: big.y });
                     }
@@ -1596,7 +2244,7 @@
                     const item = powerups[i];
                     let dx = plane.x - item.x;
                     let dy = plane.y - item.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < 38) {
+                    if (Math.sqrt(dx*dx + dy*dy) < 38 + magnetBoost * 0.5) {
                         powerups.splice(i, 1);
                         if (item.type === 'shield') {
                             activateShield(time);
@@ -1635,6 +2283,8 @@
                 ctx.fillText(effect.label || '-', effect.x, effect.y - baseYOffset - progress * offsetGrowth);
                 ctx.restore();
             }
+            
+            drawWeatherOverlay(ctx, time);
             
             if (screenFlashAlpha > 0) {
                 ctx.fillStyle = 'rgba(255, 99, 71,' + (screenFlashAlpha * 0.35) + ')';
