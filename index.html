@@ -361,6 +361,18 @@
                 cloudSize: 1.8,      // 80% bigger (big clouds)
                 spawnRate: 1400,     // Spawn every 1.4 seconds
                 cloudCount: 1        // 1 cloud per spawn
+            },
+            {
+                name: 'Impossible',
+                cloudSize: 2.6,          // Humongous clouds
+                spawnRate: 900,          // Very frequent spawns
+                cloudCount: 3,           // Clouds arrive in waves
+                pterodactylLimit: 8,     // Way more airborne threats
+                pterodactylInterval: 1700,
+                pterodactylBurst: 2,
+                fighterJetLimit: 4,
+                jetSpawnInterval: 2400,
+                jetActivationDelay: 3500
             }
         ];
         let selectedDifficulty = 0;
@@ -525,8 +537,10 @@
         let lastFighterJet = 0;
         let lastBigCoin = 0;
         let lastPowerup = 0;
+        let jetActivationStart = 0;
         const PTERODACTYL_LIMIT = 2;
         const FIGHTER_JET_LIMIT = 2;
+        const BASE_PTERODACTYL_INTERVAL = 5000;
         
         function updateScoreDisplay() {
             document.getElementById('score').textContent = score;
@@ -582,10 +596,6 @@
             const gainedSteps = currentSteps - prevSteps;
             if (gainedSteps > 0) {
                 speed = Math.min(speed + 0.5 * gainedSteps, 10);
-            }
-            if (!jetsActive && totalStarsCollected >= JET_ACTIVATION_COIN_THRESHOLD) {
-                jetsActive = true;
-                lastFighterJet = time - JET_SPAWN_INTERVAL;
             }
         }
 
@@ -793,6 +803,7 @@
             lastFighterJet = now;
             lastBigCoin = now;
             lastPowerup = now;
+            jetActivationStart = now;
             updateScoreDisplay();
             
             // Show difficulty and point multiplier
@@ -824,6 +835,22 @@
                 
                 // Spawn clouds based on difficulty
                 const diff = difficulties[selectedDifficulty];
+                const pterodactylInterval = diff.pterodactylInterval || BASE_PTERODACTYL_INTERVAL;
+                const pterodactylLimit = diff.pterodactylLimit || PTERODACTYL_LIMIT;
+                const pterodactylBurst = diff.pterodactylBurst || 1;
+                const jetSpawnInterval = diff.jetSpawnInterval || JET_SPAWN_INTERVAL;
+                const fighterJetLimit = diff.fighterJetLimit || FIGHTER_JET_LIMIT;
+                const jetActivationDelay = (diff.jetActivationDelay !== undefined) ? diff.jetActivationDelay : null;
+                const jetActivationCoinThreshold = (diff.jetActivationCoinThreshold !== undefined) ? diff.jetActivationCoinThreshold : JET_ACTIVATION_COIN_THRESHOLD;
+
+                if (!jetsActive) {
+                    const delayElapsed = jetActivationDelay !== null && (time - jetActivationStart) >= jetActivationDelay;
+                    const coinsReached = totalStarsCollected >= jetActivationCoinThreshold;
+                    if (delayElapsed || coinsReached) {
+                        jetsActive = true;
+                        lastFighterJet = time - jetSpawnInterval;
+                    }
+                }
                 if (time - lastCloud > diff.spawnRate) {
                     // Spawn multiple clouds based on difficulty
                     for (let i = 0; i < diff.cloudCount; i++) {
@@ -875,18 +902,22 @@
                 }
                 
                 // Spawn pterodactyls that fly toward the plane
-                if (time - lastPterodactyl > 5000 && pterodactyls.length < PTERODACTYL_LIMIT) {
-                    pterodactyls.push({
-                        x: canvas.width + 80,
-                        y: Math.random() * (canvas.height - 140) + 70,
-                        speed: speed + 2 + Math.random() * 1.5,
-                        flapOffset: Math.random() * Math.PI * 2
-                    });
+                if (time - lastPterodactyl > pterodactylInterval && pterodactyls.length < pterodactylLimit) {
+                    const availableSlots = Math.max(0, pterodactylLimit - pterodactyls.length);
+                    const spawnCount = Math.min(pterodactylBurst, availableSlots);
+                    for (let i = 0; i < spawnCount; i++) {
+                        pterodactyls.push({
+                            x: canvas.width + 80 + i * 40,
+                            y: Math.random() * (canvas.height - 140) + 70,
+                            speed: speed + 2 + Math.random() * 1.5,
+                            flapOffset: Math.random() * Math.PI * 2
+                        });
+                    }
                     lastPterodactyl = time;
                 }
                 
-                // Spawn fighter jets from behind after enough coins
-                if (jetsActive && time - lastFighterJet > JET_SPAWN_INTERVAL && fighterJets.length < FIGHTER_JET_LIMIT) {
+                // Spawn fighter jets from behind once activated
+                if (jetsActive && time - lastFighterJet > jetSpawnInterval && fighterJets.length < fighterJetLimit) {
                     const shotInterval = randomInRange(JET_FIRE_INTERVAL_MIN, JET_FIRE_INTERVAL_MAX);
                     fighterJets.push({
                         x: -150,
