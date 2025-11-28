@@ -6,6 +6,12 @@
     <title>Sky Drifter</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+        }
         html, body {
             width: 100%;
             height: 100%;
@@ -14,16 +20,20 @@
             background: #1a1a2e;
             overflow: hidden;
             font-family: Arial, sans-serif;
+            min-height: 100dvh;
         }
         #game {
             display: block;
             background: linear-gradient(#16213e, #1a1a2e);
             touch-action: none;
+            width: 100vw;
+            height: 100vh;
+            max-height: 100dvh;
         }
         #ui {
             position: fixed;
-            top: 15px;
-            left: 15px;
+            top: calc(15px + var(--safe-top));
+            left: calc(15px + var(--safe-left));
             color: #ffd700;
             font-size: 22px;
             font-weight: bold;
@@ -40,7 +50,7 @@
         }
         body.orientation-portrait #ui {
             top: auto;
-            bottom: 12px;
+            bottom: calc(12px + var(--safe-bottom));
             left: 50%;
             right: auto;
             transform: translateX(-50%);
@@ -68,6 +78,9 @@
         body.orientation-portrait #ui #diffDisplay {
             font-size: 13px;
             opacity: 0.85;
+        }
+        body.touch-primary.orientation-portrait #ui {
+            bottom: calc(120px + var(--safe-bottom));
         }
         body.orientation-portrait #ui .status-line,
         body.orientation-portrait #ui #shieldStatus,
@@ -295,7 +308,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            padding-top: 40px;
+            padding: calc(40px + var(--safe-top)) calc(24px + var(--safe-right)) calc(30px + var(--safe-bottom)) calc(24px + var(--safe-left));
             z-index: 20;
             overflow-y: auto;
             box-sizing: border-box;
@@ -325,7 +338,7 @@
         /* Mobile responsive */
         @media (max-width: 600px) {
             #menu {
-                padding: 20px;
+                padding: calc(20px + var(--safe-top)) calc(14px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(14px + var(--safe-left));
             }
             #menu h1 {
                 font-size: 32px;
@@ -478,6 +491,89 @@
             width: 100%;
             height: 100%;
         }
+
+        #orientationHint {
+            position: fixed;
+            top: calc(16px + var(--safe-top));
+            right: calc(16px + var(--safe-right));
+            background: rgba(0, 0, 0, 0.55);
+            color: #ffeaa7;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            z-index: 12;
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            pointer-events: none;
+            display: none;
+        }
+        body.touch-primary #orientationHint {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #orientationHint.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        #mobileControls {
+            position: fixed;
+            bottom: calc(16px + var(--safe-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(520px, calc(100vw - 24px));
+            background: rgba(5, 10, 25, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 12px 16px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.45);
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            align-items: stretch;
+            z-index: 11;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        body.touch-primary #mobileControls {
+            display: flex;
+        }
+        #mobileControls.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #boostButton {
+            appearance: none;
+            border: none;
+            border-radius: 14px;
+            padding: 12px 18px;
+            font-size: 18px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #ff6b6b, #ffa36c);
+            color: #fff;
+            letter-spacing: 0.03em;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+        #boostButton:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        #boostButton:active {
+            transform: translateY(1px);
+        }
+        .mobile-hint {
+            text-align: center;
+            font-size: 13px;
+            color: #b8d0ff;
+            letter-spacing: 0.04em;
+        }
     </style>
 </head>
 <body>
@@ -499,11 +595,16 @@
         <div id="comboStatus" class="status-line"></div>
         <div id="upgradeStatus" class="status-line"></div>
     </div>
+    <div id="orientationHint" role="status" aria-live="polite" aria-hidden="true">Rotate for landscape play</div>
+    <div id="mobileControls" aria-hidden="true">
+        <button id="boostButton" type="button" aria-label="Trigger speed boost" disabled>Boost</button>
+        <div class="mobile-hint">Drag anywhere to steer • Tap Boost when ready</div>
+    </div>
     
     <div id="menu">
         <h1 id="menuTitle">Sky Drifter</h1>
         <div id="versionTag" class="version-pill" role="status" aria-live="polite">Loading version...</div>
-        <p id="menuText">Move mouse, touch screen, or use ↑↓ keys to fly.<br>Collect glowing coins and avoid clouds!</p>
+        <p id="menuText">Drag your mouse or thumb to fly — double tap or hit Boost on phones to sprint.<br>Collect glowing coins and avoid clouds!</p>
         
         <div id="difficultySelector">
             <p style="color: #aaa; margin-bottom: 10px;">Select Difficulty:</p>
@@ -551,12 +652,32 @@
         const upgradeGrid = document.getElementById('upgradeGrid');
         const difficultyIndicator = document.getElementById('difficultyIndicator');
         const bodyElement = document.body;
+        const orientationHint = document.getElementById('orientationHint');
+        const mobileControls = document.getElementById('mobileControls');
+        const boostButton = document.getElementById('boostButton');
         const ORIENTATION_PORTRAIT_CLASS = 'orientation-portrait';
         const ORIENTATION_LANDSCAPE_CLASS = 'orientation-landscape';
+        const TOUCH_PRIMARY_CLASS = 'touch-primary';
+        const coarsePointerQuery = window.matchMedia ? window.matchMedia('(pointer: coarse)') : null;
+        let prefersTouchControls = detectTouchSupport() || (coarsePointerQuery ? coarsePointerQuery.matches : false);
         const defaultMenuTitle = menuTitle ? menuTitle.textContent : '';
         const defaultMenuText = menuText ? menuText.innerHTML : '';
         const VERSION_SOURCE = 'version.json';
         const VERSION_FALLBACK_TEXT = 'Version unavailable';
+
+        function detectTouchSupport() {
+            const nav = window.navigator || {};
+            return ('ontouchstart' in window) || (nav.maxTouchPoints && nav.maxTouchPoints > 0) || (nav.msMaxTouchPoints && nav.msMaxTouchPoints > 0);
+        }
+
+        function updateOrientationHintState(isPortraitOverride) {
+            if (!orientationHint) return;
+            const isPortrait = typeof isPortraitOverride === 'boolean' ? isPortraitOverride : window.innerHeight >= window.innerWidth;
+            const shouldShow = prefersTouchControls && isPortrait;
+            orientationHint.classList.toggle('visible', shouldShow);
+            orientationHint.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+            orientationHint.textContent = shouldShow ? 'Rotate for landscape play' : 'Landscape ready';
+        }
         
         function updateVersionTag(text) {
             if (versionTag) {
@@ -590,6 +711,7 @@
             const isPortrait = window.innerHeight >= window.innerWidth;
             bodyElement.classList.toggle(ORIENTATION_PORTRAIT_CLASS, isPortrait);
             bodyElement.classList.toggle(ORIENTATION_LANDSCAPE_CLASS, !isPortrait);
+            updateOrientationHintState(isPortrait);
         }
         loadVersionInfo();
         applyOrientationMode();
@@ -890,8 +1012,11 @@
         const DOUBLE_TAP_MAX_DISTANCE = 60;
         
         function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            const viewport = window.visualViewport;
+            const width = viewport ? viewport.width : window.innerWidth;
+            const height = viewport ? viewport.height : window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
         }
         resize();
 
@@ -1123,6 +1248,34 @@
         let score = 0;
         let speed = 3;
         
+        function syncMobileComfortUI() {
+            if (!mobileControls) return;
+            const activate = prefersTouchControls && playing;
+            mobileControls.classList.toggle('active', activate);
+            mobileControls.setAttribute('aria-hidden', activate ? 'false' : 'true');
+        }
+        
+        function applyTouchPreference(shouldUseTouch) {
+            prefersTouchControls = !!shouldUseTouch;
+            if (bodyElement) {
+                bodyElement.classList.toggle(TOUCH_PRIMARY_CLASS, prefersTouchControls);
+            }
+            syncMobileComfortUI();
+            updateOrientationHintState();
+        }
+        
+        applyTouchPreference(prefersTouchControls);
+        if (coarsePointerQuery) {
+            const handlePointerPreferenceChange = (event) => {
+                applyTouchPreference(event.matches || detectTouchSupport());
+            };
+            if (typeof coarsePointerQuery.addEventListener === 'function') {
+                coarsePointerQuery.addEventListener('change', handlePointerPreferenceChange);
+            } else if (typeof coarsePointerQuery.addListener === 'function') {
+                coarsePointerQuery.addListener(handlePointerPreferenceChange);
+            }
+        }
+        
         const PLANE_X_RATIO = 0.38;
         const DAMAGE_EFFECT_DURATION = 600;
         
@@ -1147,14 +1300,19 @@
             plane.vy = 0;
         }
         resetPlanePosition();
-        
-        window.addEventListener('resize', function() {
+
+        function handleViewportResize() {
             resize();
             applyOrientationMode();
             if (!playing) {
                 resetPlanePosition();
             }
-        });
+        }
+        
+        window.addEventListener('resize', handleViewportResize);
+        if (window.visualViewport && typeof window.visualViewport.addEventListener === 'function') {
+            window.visualViewport.addEventListener('resize', handleViewportResize);
+        }
         
         // Objects
         let clouds = [];
@@ -1289,6 +1447,14 @@
                 boostStatus.textContent = text || '';
             }
         }
+        
+        function updateMobileBoostButton(state = {}) {
+            if (!boostButton) return;
+            const label = state.label || 'Boost';
+            boostButton.textContent = label;
+            boostButton.disabled = !!state.disabled;
+            boostButton.setAttribute('aria-label', state.ariaLabel || label);
+        }
 
         function activateShield(time) {
             shieldActive = true;
@@ -1318,6 +1484,7 @@
             lastTapTime = 0;
             lastTapX = null;
             lastTapY = null;
+            updateMobileBoostButton({ label: 'Boost', disabled: true, ariaLabel: 'Boost unavailable' });
             if (!playing) {
                 setBoostStatus('');
             }
@@ -1340,6 +1507,13 @@
             return true;
         }
         
+        if (boostButton) {
+            boostButton.addEventListener('click', () => {
+                if (boostButton.disabled) return;
+                tryActivateSpeedBoost(performance.now());
+            });
+        }
+        
         function updateSpeedBoostState(time) {
             if (!playing) {
                 speedBoostActive = false;
@@ -1353,21 +1527,28 @@
         }
         
         function updateBoostStatus(time) {
-            if (!boostStatus) return;
+            if (!boostStatus && !boostButton) return;
             if (!playing) {
                 setBoostStatus('');
+                updateMobileBoostButton({ label: 'Boost', disabled: true, ariaLabel: 'Boost unavailable' });
                 return;
             }
             if (speedBoostActive) {
                 const remaining = Math.max(speedBoostEndsAt - time, 0);
-                setBoostStatus('Boost ' + (remaining / 1000).toFixed(1) + 's');
+                const seconds = (remaining / 1000).toFixed(1);
+                const label = 'Boost ' + seconds + 's';
+                setBoostStatus(label);
+                updateMobileBoostButton({ label, disabled: true, ariaLabel: `Boost active ${seconds} seconds remaining` });
                 return;
             }
             const cooldownRemaining = Math.max(speedBoostCooldownUntil - time, 0);
             if (cooldownRemaining > 0) {
-                setBoostStatus('Boost CD ' + (cooldownRemaining / 1000).toFixed(1) + 's');
+                const seconds = (cooldownRemaining / 1000).toFixed(1);
+                setBoostStatus('Boost CD ' + seconds + 's');
+                updateMobileBoostButton({ label: `Ready in ${seconds}s`, disabled: true, ariaLabel: `Boost cooldown ${seconds} seconds remaining` });
             } else {
                 setBoostStatus('Double tap ready');
+                updateMobileBoostButton({ label: 'Boost Ready', disabled: false, ariaLabel: 'Boost ready' });
             }
         }
         
@@ -1848,6 +2029,7 @@
             }
             if (startBtn) startBtn.textContent = 'Play Again';
             if (menu) menu.classList.remove('hidden');
+            syncMobileComfortUI();
         }
         
         // Controls
@@ -1952,6 +2134,7 @@
             }
             
             if (menu) menu.classList.add('hidden');
+            syncMobileComfortUI();
         };
 
         // Spawn timers
