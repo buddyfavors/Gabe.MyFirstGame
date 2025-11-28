@@ -363,7 +363,7 @@
         
         // Player plane
         let plane = { x: canvas.width * PLANE_X_RATIO, y: canvas.height / 2, vy: 0 };
-        let damageBursts = [];
+        let burstEffects = [];
         let screenFlashAlpha = 0;
         
         function resetPlanePosition() {
@@ -401,15 +401,30 @@
             document.getElementById('score').textContent = score;
         }
         
-        function triggerDamageEffect(effect, time) {
-            damageBursts.push({
+        function triggerBurstEffect(effect, time) {
+            burstEffects.push({
                 x: effect.x,
                 y: effect.y,
                 color: effect.color,
                 label: effect.label,
+                textColor: effect.textColor,
+                type: effect.type || 'damage',
                 start: time
             });
-            screenFlashAlpha = 0.45;
+            if (effect.type !== 'reward') {
+                screenFlashAlpha = 0.45;
+            }
+        }
+        
+        function triggerCoinGainEffect(x, y, amount, time) {
+            triggerBurstEffect({
+                x,
+                y,
+                color: '#ffd700',
+                textColor: '#fff3b0',
+                label: '+' + amount,
+                type: 'reward'
+            }, time);
         }
         
         function applyCoinDamage(options, time) {
@@ -420,7 +435,7 @@
             updateScoreDisplay();
             const lost = Math.max(before - coinsCollected, 0);
             const displayLabel = label || (all ? 'All!' : `-${lost || amount}`);
-            triggerDamageEffect({ x: plane.x, y: plane.y, color, label: displayLabel }, time);
+            triggerBurstEffect({ x: plane.x, y: plane.y, color, label: displayLabel, type: 'damage' }, time);
         }
         
         // Controls
@@ -878,13 +893,15 @@
                 
                 // Collision detection with stars (bonus points for harder difficulties)
                 for (let i = stars.length - 1; i >= 0; i--) {
-                    let dx = plane.x - stars[i].x;
-                    let dy = plane.y - stars[i].y;
+                    const star = stars[i];
+                    let dx = plane.x - star.x;
+                    let dy = plane.y - star.y;
                     if (Math.sqrt(dx*dx + dy*dy) < 30) {
                         stars.splice(i, 1);
                         coinsCollected += 1;
                         totalStarsCollected += 1;
                         score = coinsCollected * 10 * currentMultiplier;
+                        triggerCoinGainEffect(star.x, star.y, 10 * currentMultiplier, time);
                         updateScoreDisplay();
                         if (totalStarsCollected % 5 === 0) speed = Math.min(speed + 0.5, 10);
                         if (!jetsActive && totalStarsCollected >= 20) jetsActive = true;
@@ -892,25 +909,34 @@
                 }
             }
             
-            for (let i = damageBursts.length - 1; i >= 0; i--) {
-                const effect = damageBursts[i];
+            for (let i = burstEffects.length - 1; i >= 0; i--) {
+                const effect = burstEffects[i];
                 const progress = Math.min((time - effect.start) / DAMAGE_EFFECT_DURATION, 1);
                 if (progress >= 1) {
-                    damageBursts.splice(i, 1);
+                    burstEffects.splice(i, 1);
                     continue;
                 }
                 ctx.save();
                 ctx.globalAlpha = 1 - progress;
-                ctx.strokeStyle = effect.color || '#ff6b6b';
-                ctx.lineWidth = 3;
+                const isReward = effect.type === 'reward';
+                ctx.strokeStyle = effect.color || (isReward ? '#ffd700' : '#ff6b6b');
+                ctx.lineWidth = isReward ? 2.4 : 3;
+                if (isReward) {
+                    ctx.shadowColor = ctx.strokeStyle;
+                    ctx.shadowBlur = 25 * (1 - progress);
+                }
                 ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 35 + progress * 45, 0, Math.PI * 2);
+                const baseRadius = isReward ? 25 : 35;
+                const radiusGrowth = isReward ? 35 : 45;
+                ctx.arc(effect.x, effect.y, baseRadius + progress * radiusGrowth, 0, Math.PI * 2);
                 ctx.stroke();
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = effect.textColor || (isReward ? '#ffeaa7' : '#ffffff');
                 ctx.font = 'bold 26px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(effect.label || '-', effect.x, effect.y - 40 - progress * 30);
+                const baseYOffset = isReward ? 25 : 40;
+                const offsetGrowth = isReward ? 20 : 30;
+                ctx.fillText(effect.label || '-', effect.x, effect.y - baseYOffset - progress * offsetGrowth);
                 ctx.restore();
             }
             
